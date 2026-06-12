@@ -19,6 +19,35 @@ interface MatchFilters {
   userId?: number;
 }
 
+export function deriveMatchPlayerStats(match: any, matchPlayer: any) {
+  const isCompleted =
+    match.status === "completed" &&
+    match.teamAScore !== null &&
+    match.teamBScore !== null &&
+    match.winnerTeam !== null &&
+    matchPlayer.isSpectator === 0 &&
+    matchPlayer.team !== null;
+
+  if (!isCompleted) {
+    return {
+      result: null,
+      points: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+    };
+  }
+
+  const isTeamA = matchPlayer.team === "team_a";
+  const isWinner = matchPlayer.team === match.winnerTeam;
+
+  return {
+    result: isWinner ? "win" : "loss",
+    points: isWinner ? (match.matchFormat === "1v1" ? 3 : 2) : 0,
+    goalsFor: isTeamA ? match.teamAScore : match.teamBScore,
+    goalsAgainst: isTeamA ? match.teamBScore : match.teamAScore,
+  };
+}
+
 export async function buildMatchesWithPlayers(filters: MatchFilters = {}) {
   let query = db
     .select()
@@ -74,6 +103,16 @@ export async function buildMatchesWithPlayers(filters: MatchFilters = {}) {
 
   const playersByMatch = new Map<number, any[]>();
   for (const { mp, user } of players) {
+    const match = matches.find((m) => m.id === mp.matchId);
+    const derived = match
+      ? deriveMatchPlayerStats(match, mp)
+      : {
+          result: mp.result,
+          points: mp.points,
+          goalsFor: mp.goalsFor,
+          goalsAgainst: mp.goalsAgainst,
+        };
+
     if (!playersByMatch.has(mp.matchId)) playersByMatch.set(mp.matchId, []);
     playersByMatch.get(mp.matchId)!.push({
       id: mp.id,
@@ -81,10 +120,10 @@ export async function buildMatchesWithPlayers(filters: MatchFilters = {}) {
       userId: mp.userId,
       team: mp.team,
       isSpectator: mp.isSpectator === 1,
-      result: mp.result,
-      points: mp.points,
-      goalsFor: mp.goalsFor,
-      goalsAgainst: mp.goalsAgainst,
+      result: derived.result,
+      points: derived.points,
+      goalsFor: derived.goalsFor,
+      goalsAgainst: derived.goalsAgainst,
       user: safeUser(user),
     });
   }

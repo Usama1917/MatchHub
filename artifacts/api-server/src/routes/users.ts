@@ -1,7 +1,9 @@
 import { Router, Request, Response } from "express";
 import { db, usersTable, matchPlayersTable, matchesTable } from "@workspace/db";
-import { eq, ilike, and, sql } from "drizzle-orm";
+import { eq, ilike, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
+import { parseIdParam } from "../lib/http";
+import { deriveMatchPlayerStats } from "./matchHelpers";
 
 const router = Router();
 
@@ -30,8 +32,8 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
 });
 
 router.get("/:userId", requireAuth, async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
-  if (isNaN(userId)) {
+  const userId = parseIdParam(req.params.userId);
+  if (!userId) {
     res.status(400).json({ error: "Invalid user ID" });
     return;
   }
@@ -78,22 +80,24 @@ router.get("/:userId", requireAuth, async (req: Request, res: Response) => {
   };
 
   for (const { mp, m } of playerRecords) {
-    totalMatches++;
-    totalGoalsFor += mp.goalsFor;
-    totalGoalsAgainst += mp.goalsAgainst;
-    totalPoints += mp.points;
+    const derived = deriveMatchPlayerStats(m, mp);
 
-    if (mp.result === "win") totalWins++;
-    else if (mp.result === "loss") totalLosses++;
+    totalMatches++;
+    totalGoalsFor += derived.goalsFor;
+    totalGoalsAgainst += derived.goalsAgainst;
+    totalPoints += derived.points;
+
+    if (derived.result === "win") totalWins++;
+    else if (derived.result === "loss") totalLosses++;
 
     const game = m.game;
     if (game === "fifa" || game === "pes") {
       gameStats[game].matches++;
-      gameStats[game].goalsFor += mp.goalsFor;
-      gameStats[game].goalsAgainst += mp.goalsAgainst;
-      gameStats[game].points += mp.points;
-      if (mp.result === "win") gameStats[game].wins++;
-      else if (mp.result === "loss") gameStats[game].losses++;
+      gameStats[game].goalsFor += derived.goalsFor;
+      gameStats[game].goalsAgainst += derived.goalsAgainst;
+      gameStats[game].points += derived.points;
+      if (derived.result === "win") gameStats[game].wins++;
+      else if (derived.result === "loss") gameStats[game].losses++;
     }
   }
 
@@ -133,8 +137,8 @@ router.get("/:userId", requireAuth, async (req: Request, res: Response) => {
 });
 
 router.get("/:userId/matches", requireAuth, async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
-  if (isNaN(userId)) {
+  const userId = parseIdParam(req.params.userId);
+  if (!userId) {
     res.status(400).json({ error: "Invalid user ID" });
     return;
   }

@@ -1653,6 +1653,76 @@ export const useAdminPromoteUser = <TError = ErrorType<unknown>,
       return useMutation(getAdminPromoteUserMutationOptions(options));
     }
 
+export const getAdminDemoteUserUrl = (userId: number,) => {
+
+
+
+
+  return `/api/admin/users/${userId}/demote`
+}
+
+/**
+ * @summary Admin - demote admin to user
+ */
+export const adminDemoteUser = async (userId: number, options?: RequestInit): Promise<User> => {
+
+  return customFetch<User>(getAdminDemoteUserUrl(userId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAdminDemoteUserMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDemoteUser>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminDemoteUser>>, TError,{userId: number}, TContext> => {
+
+const mutationKey = ['adminDemoteUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminDemoteUser>>, {userId: number}> = (props) => {
+          const {userId} = props ?? {};
+
+          return  adminDemoteUser(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminDemoteUserMutationResult = NonNullable<Awaited<ReturnType<typeof adminDemoteUser>>>
+
+    export type AdminDemoteUserMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Admin - demote admin to user
+ */
+export const useAdminDemoteUser = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDemoteUser>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminDemoteUser>>,
+        TError,
+        {userId: number},
+        TContext
+      > => {
+      return useMutation(getAdminDemoteUserMutationOptions(options));
+    }
+
 export const getAdminDeleteUserUrl = (userId: number,) => {
 
 

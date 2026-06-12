@@ -10,6 +10,7 @@ import {
 import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { buildMatchesWithPlayers } from "./matchHelpers";
+import { parseIdParam } from "../lib/http";
 
 const router = Router();
 
@@ -27,7 +28,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
   const { partyId, teamA, teamB } = req.body;
   const createdBy = req.session.userId!;
 
-  if (!partyId || !teamA || !teamB) {
+  if (!partyId || !Array.isArray(teamA) || !Array.isArray(teamB)) {
     res.status(400).json({ error: "partyId, teamA, and teamB are required" });
     return;
   }
@@ -123,8 +124,8 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
 });
 
 router.get("/:matchId", requireAuth, async (req: Request, res: Response) => {
-  const matchId = parseInt(req.params.matchId);
-  if (isNaN(matchId)) {
+  const matchId = parseIdParam(req.params.matchId);
+  if (!matchId) {
     res.status(400).json({ error: "Invalid match ID" });
     return;
   }
@@ -139,8 +140,8 @@ router.get("/:matchId", requireAuth, async (req: Request, res: Response) => {
 });
 
 router.post("/:matchId/result", requireAuth, async (req: Request, res: Response) => {
-  const matchId = parseInt(req.params.matchId);
-  if (isNaN(matchId)) {
+  const matchId = parseIdParam(req.params.matchId);
+  if (!matchId) {
     res.status(400).json({ error: "Invalid match ID" });
     return;
   }
@@ -185,6 +186,16 @@ router.post("/:matchId/result", requireAuth, async (req: Request, res: Response)
     .select()
     .from(matchPlayersTable)
     .where(and(eq(matchPlayersTable.matchId, matchId), eq(matchPlayersTable.isSpectator, 0)));
+
+  const currentUserId = req.session.userId!;
+  const canSubmitResult =
+    match.createdBy === currentUserId ||
+    players.some((player) => player.userId === currentUserId);
+
+  if (!canSubmitResult) {
+    res.status(403).json({ error: "You can only submit results for your own matches" });
+    return;
+  }
 
   const teamAPlayers = players.filter((p) => p.team === "team_a");
   const teamBPlayers = players.filter((p) => p.team === "team_b");

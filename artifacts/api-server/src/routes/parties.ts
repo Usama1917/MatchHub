@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { db, partiesTable, partyMembersTable, usersTable } from "@workspace/db";
 import { eq, inArray, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
+import { parseIdParam } from "../lib/http";
 
 const router = Router();
 
@@ -95,8 +96,8 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
 });
 
 router.get("/:partyId", requireAuth, async (req: Request, res: Response) => {
-  const partyId = parseInt(req.params.partyId);
-  if (isNaN(partyId)) {
+  const partyId = parseIdParam(req.params.partyId);
+  if (!partyId) {
     res.status(400).json({ error: "Invalid party ID" });
     return;
   }

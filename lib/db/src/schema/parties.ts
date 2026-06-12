@@ -1,4 +1,11 @@
-import { pgTable, serial, timestamp, pgEnum, integer } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  serial,
+  timestamp,
+  pgEnum,
+  integer,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -11,7 +18,7 @@ export const partiesTable = pgTable("parties", {
   id: serial("id").primaryKey(),
   createdBy: integer("created_by")
     .notNull()
-    .references(() => usersTable.id, { onDelete: "cascade" }),
+    .references(() => usersTable.id, { onDelete: "restrict" }),
   game: gameEnum("game").notNull(),
   matchFormat: matchFormatEnum("match_format").notNull(),
   status: partyStatusEnum("status").notNull().default("pending"),
@@ -25,8 +32,13 @@ export const partyMembersTable = pgTable("party_members", {
     .references(() => partiesTable.id, { onDelete: "cascade" }),
   userId: integer("user_id")
     .notNull()
-    .references(() => usersTable.id, { onDelete: "cascade" }),
-});
+    .references(() => usersTable.id, { onDelete: "restrict" }),
+}, (table) => ({
+  partyUserUnique: uniqueIndex("party_members_party_user_unique").on(
+    table.partyId,
+    table.userId,
+  ),
+}));
 
 export const insertPartySchema = createInsertSchema(partiesTable).omit({
   id: true,

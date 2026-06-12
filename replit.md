@@ -4,13 +4,14 @@ Track FIFA/PES PlayStation matches between friends — login, create parties, su
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080, proxied at `/api`)
-- `pnpm --filter @workspace/matchhub run dev` — run the frontend (proxied at `/`)
+- `pnpm dev:api` — run the API server
+- `pnpm dev:web` — run the frontend
+- `pnpm db:migrate` — apply SQL migrations to PostgreSQL
+- `pnpm db:seed` — seed test accounts or env-configured admin accounts
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL`, `SESSION_SECRET`
+- Required env: `DATABASE_URL`, `SESSION_SECRET`, `PORT`
 
 ## Stack
 
@@ -21,7 +22,7 @@ Track FIFA/PES PlayStation matches between friends — login, create parties, su
 - API codegen: Orval (from OpenAPI spec at `lib/api-spec/openapi.yaml`)
 - Frontend: React + Vite + Tailwind v4 + shadcn/ui
 - State/Data fetching: TanStack Query (via generated hooks from `@workspace/api-client-react`)
-- Build: esbuild (CJS bundle for API)
+- Build: esbuild (ESM bundle for API)
 
 ## Where things live
 
@@ -37,7 +38,7 @@ Track FIFA/PES PlayStation matches between friends — login, create parties, su
 
 - **Contract-first**: OpenAPI spec defines the contract; frontend hooks + Zod schemas are generated from it via Orval. Run codegen after changing the spec.
 - **Session auth**: Cookie-based sessions via `express-session` + `connect-pg-simple`. Sessions stored in the `session` table. `req.session.userId` identifies the logged-in user.
-- **Scoring**: 1v1 winner gets 3 pts; 2v2/3v3 winner gets 2 pts per player. Losers always 0. Win type (penalties, golden goal) is recorded but doesn't affect points.
+- **Scoring**: 1v1 winner gets 3 pts; 2v2/3v3 winner gets 2 pts per player. Losers always 0. Win type (penalties, golden goal) is recorded but doesn't affect points. Rankings/profile stats are derived from completed match records.
 - **Dark gaming theme**: The HTML element has `class="dark"` applied in `index.html`. The CSS custom variant `dark (&:is(.dark *))` applies dark mode colors. Primary color is green (`142 71% 45%`).
 - **Orval config**: zod output uses `mode: "single"` and absolute target path. No `workspace` or `schemas` fields — prevents barrel regeneration collisions. See `lib/api-spec/orval.config.ts`.
 
@@ -52,7 +53,7 @@ Track FIFA/PES PlayStation matches between friends — login, create parties, su
 - **Admin**: Stats dashboard, user management (promote to admin, delete)
 - **Bilingual**: Arabic/English toggle in header; RTL/LTR applied to `<html>` element
 
-## Demo accounts
+## Seed test accounts
 
 | Username  | Password     | Role  |
 |-----------|--------------|-------|
@@ -64,13 +65,15 @@ Track FIFA/PES PlayStation matches between friends — login, create parties, su
 | mostafa   | password123  | user  |
 | youssef   | password123  | user  |
 
+These are created only by `pnpm db:seed`; the app does not create or depend on them at runtime. For production admin creation, set `ADMIN_USERNAME` and `ADMIN_PASSWORD` and run `SEED_TEST_USERS=false pnpm db:seed`.
+
 ## User preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
 
 ## Gotchas
 
-- **Session table**: `connect-pg-simple` needs the `session` table pre-created. Run the SQL in `lib/db/src/schema/session.sql` or ensure the session table exists before starting.
+- **Session table**: `connect-pg-simple` needs the `session` table pre-created. `pnpm db:migrate` creates it.
 - **Orval codegen**: After changing `openapi.yaml`, run `pnpm --filter @workspace/api-spec run codegen`. The generated files in `lib/api-client-react/src/generated/` and `lib/api-zod/src/generated/` must not be manually edited.
 - **isSpectator**: Stored as integer `0`/`1` in DB (not boolean). The Drizzle schema uses `integer` type for this field.
 - **TypeScript imports**: Always import types from `@workspace/api-client-react` (the barrel export), NOT from `@workspace/api-client-react/src/generated/api.schemas`.

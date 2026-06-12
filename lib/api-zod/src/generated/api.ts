@@ -595,6 +595,22 @@ export const AdminPromoteUserResponse = zod.object({
 
 
 /**
+ * @summary Admin - demote admin to user
+ */
+export const AdminDemoteUserParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const AdminDemoteUserResponse = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Admin - delete a user
  */
 export const AdminDeleteUserParams = zod.object({

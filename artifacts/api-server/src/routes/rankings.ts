@@ -1,7 +1,8 @@
 import { Router, Request, Response } from "express";
 import { db, matchPlayersTable, matchesTable, usersTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
+import { deriveMatchPlayerStats } from "./matchHelpers";
 
 const router = Router();
 
@@ -9,14 +10,10 @@ async function computeRankings(game?: "fifa" | "pes") {
   // Get all active (non-spectator) players from completed matches
   const rows = await db
     .select({
-      userId: matchPlayersTable.userId,
+      mp: matchPlayersTable,
+      m: matchesTable,
       displayName: usersTable.displayName,
       username: usersTable.username,
-      result: matchPlayersTable.result,
-      points: matchPlayersTable.points,
-      goalsFor: matchPlayersTable.goalsFor,
-      goalsAgainst: matchPlayersTable.goalsAgainst,
-      game: matchesTable.game,
     })
     .from(matchPlayersTable)
     .innerJoin(matchesTable, eq(matchPlayersTable.matchId, matchesTable.id))
@@ -46,9 +43,11 @@ async function computeRankings(game?: "fifa" | "pes") {
   >();
 
   for (const row of rows) {
-    if (!statsMap.has(row.userId)) {
-      statsMap.set(row.userId, {
-        userId: row.userId,
+    const derived = deriveMatchPlayerStats(row.m, row.mp);
+
+    if (!statsMap.has(row.mp.userId)) {
+      statsMap.set(row.mp.userId, {
+        userId: row.mp.userId,
         username: row.username,
         displayName: row.displayName,
         points: 0,
@@ -59,13 +58,13 @@ async function computeRankings(game?: "fifa" | "pes") {
         goalsAgainst: 0,
       });
     }
-    const stat = statsMap.get(row.userId)!;
-    stat.points += row.points;
+    const stat = statsMap.get(row.mp.userId)!;
+    stat.points += derived.points;
     stat.matches++;
-    stat.goalsFor += row.goalsFor;
-    stat.goalsAgainst += row.goalsAgainst;
-    if (row.result === "win") stat.wins++;
-    else if (row.result === "loss") stat.losses++;
+    stat.goalsFor += derived.goalsFor;
+    stat.goalsAgainst += derived.goalsAgainst;
+    if (derived.result === "win") stat.wins++;
+    else if (derived.result === "loss") stat.losses++;
   }
 
   // Sort: points desc, wins desc, goal diff desc, goals for desc, fewer matches asc
