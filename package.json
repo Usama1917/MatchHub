@@ -10,6 +10,7 @@
     "db:migrate": "pnpm --filter @workspace/scripts run db:migrate",
     "db:seed": "pnpm --filter @workspace/scripts run db:seed",
     "db:push": "pnpm --filter @workspace/db run push",
+    "smoke:vercel-api": "pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/scripts run smoke:vercel-api",
     "typecheck:libs": "tsc --build",
     "typecheck:vercel": "tsc -p tsconfig.vercel.json --noEmit",
     "typecheck": "pnpm run typecheck:libs && pnpm run typecheck:vercel && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"

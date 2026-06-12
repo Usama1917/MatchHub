@@ -113,6 +113,7 @@ Open `http://localhost:5173`.
 ```sh
 pnpm run typecheck
 pnpm run build
+pnpm run smoke:vercel-api
 ```
 
 ## Vercel + Supabase Hosting
