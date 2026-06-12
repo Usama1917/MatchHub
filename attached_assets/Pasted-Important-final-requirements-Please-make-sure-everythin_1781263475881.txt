@@ -1,0 +1,70 @@
+Important final requirements:
+
+Please make sure everything in the app is fully working, not just UI mockups.
+
+The app must be functional end-to-end:
+
+* Register must work
+* Login must work
+* Logout must work
+* Unique usernames must work
+* User profiles must work
+* Create Party must work
+* Selecting users must work
+* Selecting FIFA or PES must work
+* Selecting 1v1 / 2v2 / 3v3 must work
+* Team arrangement must work
+* Spectators logic must work
+* Starting a match must work
+* Submitting match results must work
+* Points calculation must work automatically
+* FIFA ranking must work
+* PES ranking must work
+* Match history must work
+* Admin dashboard must work
+* Creating another admin must work
+* Removing users must work
+* All validation and error messages must work
+
+Do not leave unfinished buttons, fake pages, placeholder actions, or non-working features.
+
+Language support:
+The app must support both Arabic and English.
+
+Requirements for Arabic and English:
+
+* Add a language switcher: Arabic / English
+* All UI labels must be translatable
+* All buttons must support both languages
+* All forms must support both languages
+* All error messages must support both languages
+* All success messages must support both languages
+* All empty states must support both languages
+* All admin dashboard labels must support both languages
+* All profile, rankings, party, match, and history pages must support both languages
+
+Arabic support:
+
+* Arabic must use RTL direction
+* English must use LTR direction
+* Layout should automatically switch direction based on selected language
+* Arabic text must appear correctly aligned and readable
+* Buttons, cards, forms, rankings, match cards, and tables must look good in RTL
+* Do not break the mobile design in Arabic mode
+
+English support:
+
+* English must use LTR direction
+* Layout should look clean and natural in English
+* All English labels should be clear and professional
+
+Important:
+
+* The app should remember the selected language.
+* The selected language should apply to the whole app.
+* Do not mix Arabic and English randomly in the same UI unless it is a username, game name, or brand name.
+* Game names like FIFA, PES, and MatchHub can stay in English.
+* Make sure the app is tested in both Arabic and English.
+
+Final quality requirement:
+Before finishing, review the full app and make sure every screen, action, calculation, language switch, mobile layout, and admin feature is working properly.

@@ -1,22 +1,26 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: MatchHub API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: users
+  - name: parties
+  - name: matches
+  - name: rankings
+  - name: admin
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +28,818 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # Auth
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # Users
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /users/{userId}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user profile
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{userId}/matches:
+    get:
+      operationId: getUserMatches
+      tags: [users]
+      summary: Get user match history
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: game
+          in: query
+          schema:
+            type: string
+            enum: [fifa, pes]
+        - name: matchFormat
+          in: query
+          schema:
+            type: string
+            enum: [1v1, 2v2, 3v3]
+      responses:
+        "200":
+          description: User matches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Match"
+
+  # Parties
+  /parties:
+    get:
+      operationId: listParties
+      tags: [parties]
+      summary: List parties
+      responses:
+        "200":
+          description: List of parties
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Party"
+    post:
+      operationId: createParty
+      tags: [parties]
+      summary: Create a new party
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartyInput"
+      responses:
+        "201":
+          description: Party created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /parties/{partyId}:
+    get:
+      operationId: getParty
+      tags: [parties]
+      summary: Get party details
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Party details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+
+  # Matches
+  /matches:
+    get:
+      operationId: listMatches
+      tags: [matches]
+      summary: List all matches
+      parameters:
+        - name: game
+          in: query
+          schema:
+            type: string
+            enum: [fifa, pes]
+        - name: matchFormat
+          in: query
+          schema:
+            type: string
+            enum: [1v1, 2v2, 3v3]
+        - name: userId
+          in: query
+          schema:
+            type: integer
+        - name: winType
+          in: query
+          schema:
+            type: string
+            enum: [normal, penalties, golden_goal]
+      responses:
+        "200":
+          description: List of matches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Match"
+
+    post:
+      operationId: createMatch
+      tags: [matches]
+      summary: Create a match from a party
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchInput"
+      responses:
+        "201":
+          description: Match created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /matches/{matchId}:
+    get:
+      operationId: getMatch
+      tags: [matches]
+      summary: Get match details
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+
+  /matches/{matchId}/result:
+    post:
+      operationId: submitMatchResult
+      tags: [matches]
+      summary: Submit match result and calculate stats
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchResultInput"
+      responses:
+        "200":
+          description: Result submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # Rankings
+  /rankings/fifa:
+    get:
+      operationId: getFifaRankings
+      tags: [rankings]
+      summary: Get FIFA rankings
+      responses:
+        "200":
+          description: FIFA rankings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RankingEntry"
+
+  /rankings/pes:
+    get:
+      operationId: getPesRankings
+      tags: [rankings]
+      summary: Get PES rankings
+      responses:
+        "200":
+          description: PES rankings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RankingEntry"
+
+  /rankings/overall:
+    get:
+      operationId: getOverallRankings
+      tags: [rankings]
+      summary: Get overall combined rankings
+      responses:
+        "200":
+          description: Overall rankings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RankingEntry"
+
+  # Dashboard stats (wow endpoint)
+  /stats/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [matches]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  # Admin
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      tags: [admin]
+      summary: Admin - list all users with stats
+      responses:
+        "200":
+          description: All users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /admin/users/{userId}/promote:
+    post:
+      operationId: adminPromoteUser
+      tags: [admin]
+      summary: Admin - promote user to admin
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User promoted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /admin/users/{userId}:
+    delete:
+      operationId: adminDeleteUser
+      tags: [admin]
+      summary: Admin - delete a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/stats:
+    get:
+      operationId: adminGetStats
+      tags: [admin]
+      summary: Admin - get app-wide statistics
+      responses:
+        "200":
+          description: App statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    RegisterInput:
+      type: object
+      required: [username, displayName, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        password:
+          type: string
+          minLength: 6
+
+    LoginInput:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+
+    User:
+      type: object
+      required: [id, username, displayName, role, createdAt]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [user, admin]
+        createdAt:
+          type: string
+          format: date-time
+
+    UserProfile:
+      type: object
+      required: [id, username, displayName, role, createdAt, stats]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [user, admin]
+        createdAt:
+          type: string
+          format: date-time
+        stats:
+          $ref: "#/components/schemas/UserStats"
+
+    UserStats:
+      type: object
+      required: [totalMatches, totalWins, totalLosses, totalGoalsFor, totalGoalsAgainst, totalPoints, winRate, fifaStats, pesStats]
+      properties:
+        totalMatches:
+          type: integer
+        totalWins:
+          type: integer
+        totalLosses:
+          type: integer
+        totalGoalsFor:
+          type: integer
+        totalGoalsAgainst:
+          type: integer
+        goalDifference:
+          type: integer
+        totalPoints:
+          type: integer
+        winRate:
+          type: number
+        fifaStats:
+          $ref: "#/components/schemas/GameStats"
+        pesStats:
+          $ref: "#/components/schemas/GameStats"
+
+    GameStats:
+      type: object
+      required: [matches, wins, losses, goalsFor, goalsAgainst, points, winRate]
+      properties:
+        matches:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        goalsFor:
+          type: integer
+        goalsAgainst:
+          type: integer
+        goalDifference:
+          type: integer
+        points:
+          type: integer
+        winRate:
+          type: number
+
+    PartyInput:
+      type: object
+      required: [memberIds, game, matchFormat]
+      properties:
+        memberIds:
+          type: array
+          items:
+            type: integer
+          minItems: 2
+        game:
+          type: string
+          enum: [fifa, pes]
+        matchFormat:
+          type: string
+          enum: [1v1, 2v2, 3v3]
+
+    Party:
+      type: object
+      required: [id, createdBy, game, matchFormat, status, createdAt, members]
+      properties:
+        id:
+          type: integer
+        createdBy:
+          type: integer
+        game:
+          type: string
+          enum: [fifa, pes]
+        matchFormat:
+          type: string
+          enum: [1v1, 2v2, 3v3]
+        status:
+          type: string
+          enum: [pending, in_progress, completed]
+        createdAt:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        creator:
+          $ref: "#/components/schemas/User"
+
+    MatchInput:
+      type: object
+      required: [partyId, teamA, teamB]
+      properties:
+        partyId:
+          type: integer
+        teamA:
+          type: array
+          items:
+            type: integer
+        teamB:
+          type: array
+          items:
+            type: integer
+
+    MatchResultInput:
+      type: object
+      required: [teamAScore, teamBScore, winnerTeam, winType]
+      properties:
+        teamAScore:
+          type: integer
+          minimum: 0
+        teamBScore:
+          type: integer
+          minimum: 0
+        winnerTeam:
+          type: string
+          enum: [team_a, team_b]
+        winType:
+          type: string
+          enum: [normal, penalties, golden_goal]
+
+    Match:
+      type: object
+      required: [id, partyId, game, matchFormat, status, createdBy, createdAt, players]
+      properties:
+        id:
+          type: integer
+        partyId:
+          type: integer
+        game:
+          type: string
+          enum: [fifa, pes]
+        matchFormat:
+          type: string
+          enum: [1v1, 2v2, 3v3]
+        teamAScore:
+          type: ["integer", "null"]
+        teamBScore:
+          type: ["integer", "null"]
+        winnerTeam:
+          type: ["string", "null"]
+        winType:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, in_progress, completed]
+        createdBy:
+          type: integer
+        startedAt:
+          type: ["string", "null"]
+        finishedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/MatchPlayer"
+        creator:
+          $ref: "#/components/schemas/User"
+
+    MatchPlayer:
+      type: object
+      required: [id, matchId, userId, team, isSpectator, points, goalsFor, goalsAgainst]
+      properties:
+        id:
+          type: integer
+        matchId:
+          type: integer
+        userId:
+          type: integer
+        team:
+          type: ["string", "null"]
+          enum: [team_a, team_b, null]
+        isSpectator:
+          type: boolean
+        result:
+          type: ["string", "null"]
+          enum: [win, loss, null]
+        points:
+          type: integer
+        goalsFor:
+          type: integer
+        goalsAgainst:
+          type: integer
+        user:
+          $ref: "#/components/schemas/User"
+
+    RankingEntry:
+      type: object
+      required: [rank, userId, username, displayName, points, matches, wins, losses, goalsFor, goalsAgainst, goalDifference, winRate]
+      properties:
+        rank:
+          type: integer
+        userId:
+          type: integer
+        username:
+          type: string
+        displayName:
+          type: string
+        points:
+          type: integer
+        matches:
+          type: integer
+        wins:
+          type: integer
+        losses:
+          type: integer
+        goalsFor:
+          type: integer
+        goalsAgainst:
+          type: integer
+        goalDifference:
+          type: integer
+        winRate:
+          type: number
+
+    DashboardStats:
+      type: object
+      required: [totalMatches, totalUsers, totalParties, recentMatches, topPlayers]
+      properties:
+        totalMatches:
+          type: integer
+        totalUsers:
+          type: integer
+        totalParties:
+          type: integer
+        fifaMatches:
+          type: integer
+        pesMatches:
+          type: integer
+        recentMatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+        topPlayers:
+          type: array
+          items:
+            $ref: "#/components/schemas/RankingEntry"
+
+    AdminStats:
+      type: object
+      required: [totalUsers, totalMatches, totalParties, adminCount, fifaMatches, pesMatches]
+      properties:
+        totalUsers:
+          type: integer
+        totalMatches:
+          type: integer
+        totalParties:
+          type: integer
+        adminCount:
+          type: integer
+        fifaMatches:
+          type: integer
+        pesMatches:
+          type: integer
+        matchFormats:
+          type: object
+          properties:
+            "1v1":
+              type: integer
+            "2v2":
+              type: integer
+            "3v3":
+              type: integer

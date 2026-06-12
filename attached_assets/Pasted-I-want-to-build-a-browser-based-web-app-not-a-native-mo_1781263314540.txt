@@ -1,0 +1,352 @@
+I want to build a browser-based web app, not a native mobile app.
+
+The app must open and work from any browser on desktop and mobile. It should be responsive and mobile-friendly, like a web app/PWA, but the first version should be a normal web app hosted on Replit.
+
+App idea:
+This is a private score-tracking app for friends who play PlayStation football games, mainly FIFA and PES. The app tracks parties, matches, players, results, profiles, rankings, spectators, and admin management.
+
+Main requirements:
+
+1. Authentication and users
+
+* Create a complete login/register system.
+* Every user must have:
+
+  * unique username
+  * display name
+  * password/login credentials
+  * profile page
+  * created date
+  * role: user or admin
+* The username must be unique and no two users can have the same username.
+* Users can log in and see only their own profile, matches, stats, and general rankings.
+
+2. User profile
+   Each user profile should show:
+
+* User basic info
+* Total matches played
+* Total wins
+* Total losses
+* Total goals scored
+* Total goals conceded
+* Goal difference
+* Total points
+* Win rate
+* Matches grouped by game:
+
+  * FIFA matches section
+  * PES matches section
+* Inside each game section, show all matches in a clean, ordered, logical layout.
+* For every match, show:
+
+  * game name
+  * match type: 1v1, 2v2, 3v3
+  * teams
+  * final score
+  * winner
+  * win type: normal win, penalty shootout win, golden goal win
+  * date/time
+  * spectators
+  * party creator
+
+3. Party system
+   The main flow should be based on creating a party before creating a match.
+
+A user can create a new party:
+
+* Click “Create Party”
+* Add/select users by searching their unique usernames
+* The party can include any number of users, theoretically unlimited.
+* After selecting party members, the user selects the game:
+
+  * FIFA
+  * PES
+* Then the user selects match format:
+
+  * 1v1
+  * 2v2
+  * 3v3
+
+Important:
+
+* The party can include more users than the actual match needs.
+* Example: If the party has 6 users but the match is 2v2, only 4 users will be selected as active players.
+* Any extra users in the party who are not selected in Team A or Team B must be automatically recorded as spectators for that match.
+* Spectators do not receive points, wins, losses, goals, or match-played stats.
+* Spectators should still appear in the match details as “spectators”.
+
+4. Team selection
+   After selecting the game and match format, the user should arrange teams in a clean and easy UI.
+
+Examples:
+
+* For 1v1:
+
+  * Team A: 1 user
+  * Team B: 1 user
+* For 2v2:
+
+  * Team A: 2 users
+  * Team B: 2 users
+* For 3v3:
+
+  * Team A: 3 users
+  * Team B: 3 users
+
+The UI should make it very clear who is playing with who and against who.
+
+Example:
+Team A:
+
+* Osama
+* Ahmed
+
+VS
+
+Team B:
+
+* Mido
+* Khaled
+
+Spectators:
+
+* Mostafa
+* Youssef
+
+The app must prevent starting a match if the selected active players count does not match the chosen format.
+
+5. Match lifecycle
+   The match flow:
+
+* Create party
+* Select users
+* Select game: FIFA or PES
+* Select match format: 1v1, 2v2, 3v3
+* Arrange teams
+* Start match
+* After the real PlayStation match ends, return to the app and submit the result
+
+When submitting result:
+
+* Enter Team A score
+* Enter Team B score
+* Select winner
+* Select win type:
+
+  * Normal win
+  * Penalty shootout win
+  * Golden goal win
+* Save match result
+
+The app should calculate everything automatically after saving the result.
+
+6. Scoring system
+   The scoring system must be fully automatic.
+
+For 1v1 matches:
+
+* Winner gets 3 points
+* Loser gets 0 points
+
+For 2v2 matches:
+
+* Every player on the winning team gets 2 points
+* Every player on the losing team gets 0 points
+
+For 3v3 matches:
+
+* Every player on the winning team gets 2 points
+* Every player on the losing team gets 0 points
+
+Goal stats:
+
+* Every active player in Team A receives Team A score as goals_for and Team B score as goals_against.
+* Every active player in Team B receives Team B score as goals_for and Team A score as goals_against.
+* Spectators receive no stats.
+
+The result type should be stored:
+
+* normal
+* penalties
+* golden_goal
+
+The points should not depend on win type. Win type is only stored for match history and stats.
+
+7. Rankings
+   Create a separate rankings page.
+
+Rankings must be separated by game:
+
+* FIFA ranking
+* PES ranking
+
+Each game ranking should show users ordered by points for that game only.
+
+Ranking table columns:
+
+* Rank number
+* User
+* Points
+* Matches played
+* Wins
+* Losses
+* Goals for
+* Goals against
+* Goal difference
+* Win rate
+
+Sorting:
+
+* Main sort: total points
+* Tie breaker 1: wins
+* Tie breaker 2: goal difference
+* Tie breaker 3: goals for
+* Tie breaker 4: fewer matches played
+
+Optional:
+Also show an overall ranking that combines FIFA and PES, but the most important thing is that FIFA and PES each have their own separate ranking.
+
+8. Match history page
+   Create a match history page that shows all matches in a clean timeline/list.
+
+Each match card should show:
+
+* Game: FIFA or PES
+* Match type: 1v1 / 2v2 / 3v3
+* Team A players
+* Team B players
+* Score
+* Winner team
+* Win type
+* Spectators
+* Date/time
+* Created by
+
+Filters:
+
+* Filter by game: FIFA / PES
+* Filter by match type: 1v1 / 2v2 / 3v3
+* Filter by user
+* Filter by win type
+
+9. Admin dashboard
+   Create an admin dashboard.
+
+The admin can:
+
+* View all users
+* Create another admin
+* Remove/delete a user
+* View all matches
+* View all parties
+* View app statistics
+* View rankings
+* View users’ profiles
+
+Very important admin rule:
+
+* Admin must NOT be able to manually edit scores, match results, player stats, or ranking points.
+* Scores and rankings must be calculated automatically by the system logic only.
+* Admin is only for management, not for manipulating results.
+* The app logic must not depend on admin actions.
+* The system should be automatic as much as possible.
+
+10. Data model
+    Please create a clean database/data structure for:
+
+users:
+
+* id
+* username
+* display_name
+* password_hash or auth info
+* role
+* created_at
+
+parties:
+
+* id
+* created_by
+* game
+* match_format
+* status
+* created_at
+
+party_members:
+
+* id
+* party_id
+* user_id
+
+matches:
+
+* id
+* party_id
+* game
+* match_format
+* team_a_score
+* team_b_score
+* winner_team
+* win_type
+* created_by
+* started_at
+* finished_at
+* created_at
+
+match_players:
+
+* id
+* match_id
+* user_id
+* team
+* is_spectator
+* result
+* points
+* goals_for
+* goals_against
+
+11. UI/UX
+    Design requirements:
+
+* Modern, clean, gaming-style UI
+* Mobile-first responsive design
+* Easy to use from mobile browser
+* Dark mode style is preferred
+* Clear cards and tables
+* Smooth layout
+* Arabic-friendly design direction is preferred
+* The app can be in English internally, but the UI labels should be easy to later translate to Arabic
+
+Important UI pages:
+
+* Login
+* Register
+* Home dashboard
+* Create Party
+* Team selection
+* Submit Result
+* Match History
+* User Profile
+* Rankings
+* Admin Dashboard
+
+12. Technical requirements
+
+* Build the full working app in Replit.
+* The app must run in browser.
+* Use a simple reliable stack suitable for Replit.
+* Keep code clean and organized.
+* Add comments where needed.
+* Make sure all score calculations are automatic.
+* Add seed/demo data so I can test the app quickly with multiple users and matches.
+* Make sure the app can be extended later with:
+
+  * match confirmation system
+  * seasons
+  * tournaments
+  * achievements
+  * notifications
+
+Final goal:
+I want a complete MVP that me and my friends can open from the browser, create accounts, create parties, choose FIFA or PES, arrange 1v1 / 2v2 / 3v3 teams, record results, automatically calculate player stats, and show separate rankings for FIFA and PES.

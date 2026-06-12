@@ -1,0 +1,51 @@
+Additional design and UX requirements:
+
+The app name is MatchHub.
+
+The website will mostly be opened and used from mobile phones, so the entire app must be designed mobile-first.
+
+Very important:
+
+* Design for mobile screens first, then make it responsive for desktop.
+* All pages, buttons, cards, forms, tables, rankings, and match history must look excellent on mobile.
+* Avoid desktop-only layouts.
+* Avoid wide tables that break on mobile.
+* Use mobile-friendly cards instead of large tables when needed.
+* Buttons should be large and easy to tap.
+* Inputs and selectors should be touch-friendly.
+* The Create Party flow must feel smooth and simple on mobile.
+
+The UI style should match the idea of the app:
+
+* App name: MatchHub
+* Theme: gaming, football, PlayStation friends, competitive ranking
+* Preferred design: modern dark mode, energetic, clean, and premium
+* Use visual elements that fit football matches, scoreboards, teams, rankings, and competition.
+* The design should feel like a fun competitive gaming hub, not a boring admin system.
+
+Interactivity is very important:
+
+* Everything should feel interactive and alive.
+* Add smooth hover states, tap states, transitions, and micro-interactions.
+* Use animated cards where suitable.
+* Add clear selected states when choosing users, game type, match format, teams, and winner.
+* Add loading states, empty states, success states, and error states.
+* Add confirmation modals for important actions.
+* The party creation flow should feel like a step-by-step interactive wizard:
+
+  1. Select party members
+  2. Select game: FIFA or PES
+  3. Select match format: 1v1, 2v2, 3v3
+  4. Arrange teams
+  5. Start match
+  6. Submit result
+
+Make the MatchHub branding clear:
+
+* Show MatchHub logo/text in the app header.
+* Use a consistent color palette suitable for a football gaming app.
+* Use cards, badges, score chips, ranking medals, and player avatars.
+* Make the rankings page exciting with rank badges for top players.
+* Make match cards visually clear with Team A vs Team B layout.
+
+The final app should feel like a real mobile web app that friends will enjoy opening from their phones after every PlayStation match.

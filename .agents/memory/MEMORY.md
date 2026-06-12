@@ -1,0 +1,5 @@
+- [Orval codegen config](orval-config.md) — zod output must use mode:single + absolute path, no workspace/schemas fields to avoid barrel collision
+- [Session table setup](session-setup.md) — connect-pg-simple needs session table pre-created; use createTableIfMissing:false after manual creation
+- [API client imports](api-client-imports.md) — always import types from @workspace/api-client-react barrel, never from /src/generated/api.schemas subpath
+- [Dark theme setup](dark-theme.md) — dark class on <html> in index.html; CSS custom variant dark (&:is(.dark *)) applies dark mode
+- [isSpectator DB field](db-conventions.md) — stored as integer 0/1 not boolean; Drizzle schema uses integer type
