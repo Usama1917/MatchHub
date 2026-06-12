@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -26,6 +27,13 @@ const corsOrigins = process.env.CORS_ORIGIN
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const corsOrigin =
+  corsOrigins && corsOrigins.length > 0
+    ? corsOrigins
+    : process.env.NODE_ENV === "production"
+      ? false
+      : true;
+
 app.use(
   pinoHttp({
     logger,
@@ -48,7 +56,7 @@ app.use(
 
 app.use(
   cors({
-    origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : true,
+    origin: corsOrigin,
     credentials: true,
   }),
 );

@@ -11,10 +11,12 @@
     "db:seed": "pnpm --filter @workspace/scripts run db:seed",
     "db:push": "pnpm --filter @workspace/db run push",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck:vercel": "tsc -p tsconfig.vercel.json --noEmit",
+    "typecheck": "pnpm run typecheck:libs && pnpm run typecheck:vercel && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "private": true,
   "devDependencies": {
+    "@types/node": "catalog:",
     "prettier": "^3.8.3",
     "typescript": "~5.9.3"
   }

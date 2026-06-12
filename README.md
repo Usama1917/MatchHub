@@ -24,24 +24,28 @@ Create `.env` from `.env.example` and set real values:
 cp .env.example .env
 ```
 
-Required for the API and scripts:
+Required for the API/serverless functions and scripts:
 
 - `DATABASE_URL`: PostgreSQL connection string
 - `SESSION_SECRET`: long random secret for signed session cookies
-- `PORT`: API server port
+
+Required only for the local API process:
+
+- `PORT`: API server port, use `4000`
 
 Common hosting options:
 
 - `CORS_ORIGIN`: allowed frontend origin(s), comma-separated
 - `COOKIE_SECURE=true`: use for HTTPS hosting
-- `COOKIE_SAME_SITE=none`: use when frontend and API are on different sites
+- `COOKIE_SAME_SITE=lax`: use when frontend and API are on the same Vercel project
+- `COOKIE_SAME_SITE=none`: use only when frontend and API are on different sites
 - `TRUST_PROXY=true`: use behind a hosting proxy/load balancer
 
 Frontend dev options:
 
 - `FRONTEND_PORT`: Vite dev/preview port, defaults to `5173`
 - `BASE_PATH`: frontend base path, defaults to `/`
-- `API_PROXY_TARGET`: local API proxy target, defaults to `http://localhost:8080`
+- `API_PROXY_TARGET`: local API proxy target, defaults to `http://127.0.0.1:4000`
 
 ## Database
 
@@ -111,15 +115,55 @@ pnpm run typecheck
 pnpm run build
 ```
 
-## Hosting Notes
+## Vercel + Supabase Hosting
 
-1. Provision PostgreSQL.
-2. Set `DATABASE_URL`, `SESSION_SECRET`, `PORT`, and hosting cookie/CORS vars.
-3. Run `pnpm install --frozen-lockfile`.
-4. Run `pnpm db:migrate`.
-5. Optionally run `SEED_TEST_USERS=false pnpm db:seed` with admin env vars.
-6. Run `pnpm run build`.
-7. Start the API with `pnpm --filter @workspace/api-server run start`.
-8. Serve `artifacts/matchhub/dist/public` as the frontend static bundle.
+MatchHub is configured for a single Vercel project. Vercel serves the Vite frontend from `artifacts/matchhub/dist/public` and runs the Express API through serverless functions in `api/*`. Keep the database on Supabase PostgreSQL through `DATABASE_URL`.
+
+Create one Vercel project with these settings:
+
+| Setting | Value |
+|---------|-------|
+| Root Directory | `.` |
+| Framework Preset | `Other` |
+| Install Command | `pnpm install --frozen-lockfile` |
+| Build Command | `pnpm run typecheck && pnpm --filter @workspace/matchhub run build` |
+| Output Directory | `artifacts/matchhub/dist/public` |
+
+Required Vercel environment variables:
+
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | Supabase PostgreSQL connection string |
+| `SESSION_SECRET` | Long random secret for signed session cookies |
+| `COOKIE_SECURE` | `true` |
+| `COOKIE_SAME_SITE` | `lax` |
+| `TRUST_PROXY` | `true` |
+
+Optional Vercel environment variables:
+
+| Variable | When to set |
+|----------|-------------|
+| `CORS_ORIGIN` | Set to your Vercel/custom frontend origin if you want an explicit allow-list |
+| `BASE_PATH` | Only if the frontend is hosted under a sub-path; default is `/` |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` / `ADMIN_DISPLAY_NAME` | Only when seeding a production admin |
+| `SEED_TEST_USERS` | Set to `false` for production admin-only seeding |
+
+Do not set `PORT`, `FRONTEND_PORT`, or `API_PROXY_TARGET` in Vercel; those are local development settings.
+
+Before the first production deploy, apply migrations against the Supabase database:
+
+```sh
+DATABASE_URL="your-supabase-postgres-url" pnpm db:migrate
+```
+
+Optionally seed a production admin:
+
+```sh
+DATABASE_URL="your-supabase-postgres-url" \
+ADMIN_USERNAME="admin" \
+ADMIN_PASSWORD="replace-with-a-real-password" \
+SEED_TEST_USERS=false \
+pnpm db:seed
+```
 
 Scores, player stats, and rankings are calculated from match records. Admin user management does not expose controls for editing scores, results, points, or player statistics.
