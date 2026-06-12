@@ -1,8 +1,5 @@
 import "dotenv/config";
-import http, {
-  type IncomingMessage,
-  type ServerResponse,
-} from "node:http";
+import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import { createRequire } from "node:module";
 import { type AddressInfo } from "node:net";
 
@@ -56,7 +53,7 @@ async function closeServer(server: http.Server) {
 }
 
 const require = createRequire(import.meta.url);
-const handler = require("../../api/[...path].js") as VercelHandler;
+const handler = require("../../api/index.js") as VercelHandler;
 
 const server = http.createServer((req, res) => {
   const vercelReq = req as VercelRequest;
@@ -103,6 +100,12 @@ try {
     );
   }
 
+  const me = await fetch(`${baseUrl}/api/auth/me`);
+
+  if (me.status === 404) {
+    throw new Error("GET /api/auth/me returned 404");
+  }
+
   const login = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -114,8 +117,26 @@ try {
     throw new Error(`POST /api/auth/login returned 404: ${loginBody}`);
   }
 
+  const logout = await fetch(`${baseUrl}/api/auth/logout`, {
+    method: "POST",
+  });
+
+  if (logout.status === 404) {
+    throw new Error("POST /api/auth/logout returned 404");
+  }
+
+  const register = await fetch(`${baseUrl}/api/auth/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+
+  if (register.status === 404) {
+    throw new Error("POST /api/auth/register returned 404");
+  }
+
   console.log(
-    `Vercel API smoke passed: /api/health=${health.status}, /?path=health=${catchAllHealth.status}, /api/auth/login=${login.status}`,
+    `Vercel API smoke passed: health=${health.status}, me=${me.status}, login=${login.status}, logout=${logout.status}, register=${register.status}`,
   );
 } finally {
   await closeServer(server);
