@@ -126,7 +126,7 @@ Create one Vercel project with these settings:
 | Root Directory | `.` |
 | Framework Preset | `Other` |
 | Install Command | `pnpm install --frozen-lockfile` |
-| Build Command | `pnpm run typecheck && pnpm --filter @workspace/matchhub run build` |
+| Build Command | `pnpm run typecheck && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/matchhub run build` |
 | Output Directory | `artifacts/matchhub/dist/public` |
 
 Required Vercel environment variables:

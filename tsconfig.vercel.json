@@ -4,5 +4,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["api/**/*.ts", "artifacts/api-server/src/vercel.ts"]
+  "include": ["artifacts/api-server/src/vercel.ts"]
 }
