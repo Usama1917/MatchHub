@@ -54,7 +54,7 @@ export function RankingTable({ data, isLoading }: RankingTableProps) {
   };
 
   return (
-    <div className="rounded-lg border border-border/50 overflow-hidden bg-card/50">
+    <div className="rounded-lg border border-border/50 overflow-x-auto bg-card/50">
       <Table>
         <TableHeader className="bg-muted/50">
           <TableRow className="hover:bg-transparent">
@@ -62,9 +62,9 @@ export function RankingTable({ data, isLoading }: RankingTableProps) {
             <TableHead>Player</TableHead>
             <TableHead className="text-right font-bold text-primary">PTS</TableHead>
             <TableHead className="text-right text-xs md:text-sm">P</TableHead>
-            <TableHead className="text-right text-xs md:text-sm hidden sm:table-cell">W-L</TableHead>
-            <TableHead className="text-right text-xs md:text-sm hidden md:table-cell">GD</TableHead>
-            <TableHead className="text-right text-xs md:text-sm hidden lg:table-cell">Win %</TableHead>
+            <TableHead className="text-right text-xs md:text-sm">W-L</TableHead>
+            <TableHead className="text-right text-xs md:text-sm">GD</TableHead>
+            <TableHead className="text-right text-xs md:text-sm">Win %</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -92,15 +92,15 @@ export function RankingTable({ data, isLoading }: RankingTableProps) {
               <TableCell className="p-2 md:p-4 text-right font-mono text-xs md:text-sm text-muted-foreground">
                 {entry.matches}
               </TableCell>
-              <TableCell className="p-2 md:p-4 text-right font-mono text-xs md:text-sm text-muted-foreground hidden sm:table-cell">
+              <TableCell className="p-2 md:p-4 text-right font-mono text-xs md:text-sm text-muted-foreground">
                 <span className="text-green-500">{entry.wins}</span>-<span className="text-red-500">{entry.losses}</span>
               </TableCell>
-              <TableCell className="p-2 md:p-4 text-right font-mono text-xs md:text-sm text-muted-foreground hidden md:table-cell">
+              <TableCell className="p-2 md:p-4 text-right font-mono text-xs md:text-sm text-muted-foreground">
                 <span className={cn(entry.goalDifference > 0 ? "text-green-500" : entry.goalDifference < 0 ? "text-red-500" : "")}>
                   {entry.goalDifference > 0 ? '+' : ''}{entry.goalDifference}
                 </span>
               </TableCell>
-              <TableCell className="p-2 md:p-4 text-right font-mono text-xs md:text-sm text-muted-foreground hidden lg:table-cell">
+              <TableCell className="p-2 md:p-4 text-right font-mono text-xs md:text-sm text-muted-foreground">
                 {Math.round(entry.winRate)}%
               </TableCell>
             </TableRow>

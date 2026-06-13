@@ -17,6 +17,7 @@ interface MatchFilters {
   matchFormat?: string;
   winType?: string;
   userId?: number;
+  partyId?: number;
 }
 
 export function deriveMatchPlayerStats(match: any, matchPlayer: any) {
@@ -67,6 +68,9 @@ export async function buildMatchesWithPlayers(filters: MatchFilters = {}) {
   }
   if (filters.winType) {
     conditions.push(eq(matchesTable.winType, filters.winType as any));
+  }
+  if (filters.partyId) {
+    conditions.push(eq(matchesTable.partyId, filters.partyId));
   }
 
   const matches =

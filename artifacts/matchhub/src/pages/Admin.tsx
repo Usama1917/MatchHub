@@ -216,8 +216,7 @@ export default function Admin() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID</TableHead>
-                      <TableHead>Game</TableHead>
-                      <TableHead>Format</TableHead>
+                      <TableHead>Code</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Members</TableHead>
                       <TableHead>Date</TableHead>
@@ -227,8 +226,7 @@ export default function Admin() {
                     {parties?.map(p => (
                       <TableRow key={p.id}>
                         <TableCell className="font-mono">{p.id}</TableCell>
-                        <TableCell className="uppercase font-bold">{p.game}</TableCell>
-                        <TableCell>{p.matchFormat}</TableCell>
+                        <TableCell className="font-mono font-bold tracking-wider">{p.code}</TableCell>
                         <TableCell><Badge variant="outline">{p.status}</Badge></TableCell>
                         <TableCell>{p.members?.length || 0}</TableCell>
                         <TableCell className="text-muted-foreground text-xs">{format(new Date(p.createdAt), 'MMM d, yyyy')}</TableCell>

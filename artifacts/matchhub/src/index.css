@@ -4,6 +4,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Arabic version uses the Estedad font family (variable, all weights 100–900).
+   Scoped to <html lang="ar">; monospace utilities (e.g. party codes) keep
+   their own font. */
+@font-face {
+  font-family: "Estedad";
+  src: url("https://cdn.jsdelivr.net/gh/aminabedi68/Estedad@8.5/fonts/Estedad%5Bwght%5D.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+html[lang="ar"] body {
+  font-family: "Estedad", "Inter", system-ui, sans-serif;
+}
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));

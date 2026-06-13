@@ -14,6 +14,7 @@ tags:
   - name: matches
   - name: rankings
   - name: admin
+  - name: invitations
 
 paths:
   /healthz:
@@ -133,6 +134,21 @@ paths:
                 items:
                   $ref: "#/components/schemas/User"
 
+  /users/friends:
+    get:
+      operationId: listFriends
+      tags: [users]
+      summary: List mutual follows (users who follow you back)
+      responses:
+        "200":
+          description: List of mutual-follow users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
   /users/{userId}:
     get:
       operationId: getUser
@@ -189,6 +205,90 @@ paths:
                 items:
                   $ref: "#/components/schemas/Match"
 
+  /users/{userId}/follow:
+    post:
+      operationId: followUser
+      tags: [users]
+      summary: Follow a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Followed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: unfollowUser
+      tags: [users]
+      summary: Unfollow a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unfollowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /users/{userId}/followers:
+    get:
+      operationId: listFollowers
+      tags: [users]
+      summary: List users who follow this user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Followers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /users/{userId}/following:
+    get:
+      operationId: listFollowing
+      tags: [users]
+      summary: List users this user follows
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Following
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
   # Parties
   /parties:
     get:
@@ -228,6 +328,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /parties/active:
+    get:
+      operationId: getMyActiveParty
+      tags: [parties]
+      summary: Get the current user's active party (or null)
+      responses:
+        "200":
+          description: Active party or null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Party"
+                  - type: "null"
+
+  /parties/lookup:
+    get:
+      operationId: lookupPartyByCode
+      tags: [parties]
+      summary: Find a party by its code
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Party found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /parties/{partyId}:
     get:
       operationId: getParty
@@ -246,6 +386,122 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Party"
+
+  /parties/{partyId}/join:
+    post:
+      operationId: joinParty
+      tags: [parties]
+      summary: Join a party by id
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Joined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Already in an active party
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /parties/{partyId}/close:
+    post:
+      operationId: closeParty
+      tags: [parties]
+      summary: Close a party (creator only)
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+        "403":
+          description: Only the creator can close the party
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # Invitations
+  /invitations:
+    get:
+      operationId: listMyInvitations
+      tags: [invitations]
+      summary: List my pending party invitations
+      responses:
+        "200":
+          description: Pending invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+
+  /invitations/{invitationId}/accept:
+    post:
+      operationId: acceptInvitation
+      tags: [invitations]
+      summary: Accept a party invitation
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "409":
+          description: Already in an active party
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /invitations/{invitationId}/reject:
+    post:
+      operationId: rejectInvitation
+      tags: [invitations]
+      summary: Reject a party invitation
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
 
   # Matches
   /matches:
@@ -273,6 +529,10 @@ paths:
           schema:
             type: string
             enum: [normal, penalties, golden_goal]
+        - name: partyId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: List of matches
@@ -595,6 +855,12 @@ components:
           format: date-time
         stats:
           $ref: "#/components/schemas/UserStats"
+        followerCount:
+          type: integer
+        followingCount:
+          type: integer
+        isFollowing:
+          type: boolean
 
     UserStats:
       type: object
@@ -644,34 +910,22 @@ components:
 
     PartyInput:
       type: object
-      required: [memberIds, game, matchFormat]
       properties:
         memberIds:
           type: array
           items:
             type: integer
-          minItems: 2
-        game:
-          type: string
-          enum: [fifa, pes]
-        matchFormat:
-          type: string
-          enum: [1v1, 2v2, 3v3]
 
     Party:
       type: object
-      required: [id, createdBy, game, matchFormat, status, createdAt, members]
+      required: [id, createdBy, code, status, createdAt, members]
       properties:
         id:
           type: integer
         createdBy:
           type: integer
-        game:
+        code:
           type: string
-          enum: [fifa, pes]
-        matchFormat:
-          type: string
-          enum: [1v1, 2v2, 3v3]
         status:
           type: string
           enum: [pending, in_progress, completed]
@@ -684,13 +938,42 @@ components:
             $ref: "#/components/schemas/User"
         creator:
           $ref: "#/components/schemas/User"
+        pendingInvites:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+
+    Invitation:
+      type: object
+      required: [id, partyId, partyCode, status, createdAt, fromUser]
+      properties:
+        id:
+          type: integer
+        partyId:
+          type: integer
+        partyCode:
+          type: string
+        status:
+          type: string
+          enum: [pending, accepted, rejected]
+        createdAt:
+          type: string
+          format: date-time
+        fromUser:
+          $ref: "#/components/schemas/User"
 
     MatchInput:
       type: object
-      required: [partyId, teamA, teamB]
+      required: [partyId, game, matchFormat, teamA, teamB]
       properties:
         partyId:
           type: integer
+        game:
+          type: string
+          enum: [fifa, pes]
+        matchFormat:
+          type: string
+          enum: [1v1, 2v2, 3v3]
         teamA:
           type: array
           items:

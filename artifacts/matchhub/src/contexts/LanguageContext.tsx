@@ -65,6 +65,52 @@ export const translations: Translations = {
   noMatches: { en: 'No matches found', ar: 'لا توجد مباريات' },
   noUsers: { en: 'No users found', ar: 'لا يوجد مستخدمين' },
   emptyState: { en: 'Nothing to see here yet!', ar: 'لا يوجد شيء لعرضه هنا بعد!' },
+
+  // Party codes & joining
+  partyCode: { en: 'Party Code', ar: 'كود البارتي' },
+  yourPartyCode: { en: 'Your party code', ar: 'كود البارتي بتاعك' },
+  shareCodeHint: { en: 'Share this code so others can join', ar: 'شارك الكود ده عشان الناس تنضم' },
+  share: { en: 'Share', ar: 'مشاركة' },
+  copy: { en: 'Copy', ar: 'نسخ' },
+  copied: { en: 'Copied!', ar: 'تم النسخ!' },
+  done: { en: 'Done', ar: 'تم' },
+  searchPlayers: { en: 'Search players', ar: 'بحث عن لاعب' },
+  searchParty: { en: 'Search party', ar: 'بحث عن بارتي' },
+  enterPartyCode: { en: 'Enter party code', ar: 'أدخل كود البارتي' },
+  join: { en: 'Join', ar: 'انضمام' },
+  joinParty: { en: 'Join Party', ar: 'انضمام للبارتي' },
+  partyNotFound: { en: 'Party not found', ar: 'البارتي غير موجودة' },
+  joined: { en: 'Joined the party!', ar: 'تم الانضمام للبارتي!' },
+  members: { en: 'Members', ar: 'الأعضاء' },
+  status: { en: 'Status', ar: 'الحالة' },
+  party_pending: { en: 'Pending', ar: 'في الانتظار' },
+  party_in_progress: { en: 'In Progress', ar: 'جارية' },
+  party_completed: { en: 'Completed', ar: 'منتهية' },
+  matchesInParty: { en: 'Matches', ar: 'المباريات' },
+  newMatch: { en: 'New Match', ar: 'ماتش جديد' },
+  rematch: { en: 'Rematch (same opponents)', ar: 'ماتش تاني بنفس الخصوم' },
+  startLater: { en: 'You can start a match later from the party page', ar: 'تقدر تبدأ ماتش بعدين من صفحة البارتي' },
+  needMoreMembers: { en: 'You need at least one more player to start a match', ar: 'محتاج لاعب تاني على الأقل عشان تبدأ ماتش' },
+  closeParty: { en: 'Close Party', ar: 'إغلاق البارتي' },
+  partyClosed: { en: 'Party closed', ar: 'تم إغلاق البارتي' },
+  pendingInvites: { en: 'Pending', ar: 'في انتظار القبول' },
+
+  // Invitations (floating)
+  invitedYou: { en: 'invited you to a party', ar: 'دعاك لبارتي' },
+  accept: { en: 'Accept', ar: 'قبول' },
+  reject: { en: 'Reject', ar: 'رفض' },
+  doNotDisturb: { en: 'Do not disturb', ar: 'عدم الإزعاج' },
+  invitationAccepted: { en: 'Invitation accepted', ar: 'تم قبول الدعوة' },
+  createPartyAction: { en: 'Create Party', ar: 'إنشاء البارتي' },
+  noFriendsYet: { en: 'No mutual follows yet. Use search to find players.', ar: 'لسه مفيش متابعة متبادلة. استخدم البحث للقاء لاعبين.' },
+
+  // Follow
+  follow: { en: 'Follow', ar: 'متابعة' },
+  unfollow: { en: 'Unfollow', ar: 'إلغاء المتابعة' },
+  followers: { en: 'Followers', ar: 'المتابِعون' },
+  following: { en: 'Following', ar: 'يتابع' },
+  noFollowers: { en: 'No followers yet', ar: 'لا يوجد متابِعون بعد' },
+  noFollowing: { en: 'Not following anyone yet', ar: 'لا يتابع أحدًا بعد' },
 };
 
 interface LanguageContextType {

@@ -1,7 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { useListUsers, useCreateParty, useCreateMatch } from '@workspace/api-client-react';
-import { User, PartyInputGame, PartyInputMatchFormat } from '@workspace/api-client-react';
+import {
+  useListUsers,
+  useListFriends,
+  useCreateParty,
+  useLookupPartyByCode,
+  useJoinParty,
+  User,
+  Party,
+} from '@workspace/api-client-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -9,12 +16,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, ChevronRight, ChevronLeft, Check, X, Gamepad2, Users } from 'lucide-react';
+import { Search, Check, X, Users, Copy, Share2, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Mode = 'players' | 'party';
 
 export default function CreateParty() {
   const { t } = useLanguage();
@@ -22,151 +29,189 @@ export default function CreateParty() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const [step, setStep] = useState<Step>(1);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [mode, setMode] = useState<Mode>('players');
   const [search, setSearch] = useState('');
+  const [code, setCode] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<User[]>(currentUser ? [currentUser] : []);
-  const [game, setGame] = useState<PartyInputGame | null>(null);
-  const [format, setFormat] = useState<PartyInputMatchFormat | null>(null);
-  
-  // Team arrangements
-  const [teamA, setTeamA] = useState<(User | null)[]>([]);
-  const [teamB, setTeamB] = useState<(User | null)[]>([]);
+  const [createdParty, setCreatedParty] = useState<Party | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const { data: users, isLoading: loadingUsers } = useListUsers({ search });
-  const createPartyMut = useCreateParty();
-  const createMatchMut = useCreateMatch();
+  const searchTerm = search.trim();
+  const trimmedCode = code.trim();
 
-  // Step 1: Select Members
+  // Default list = mutual follows; once the user types, search all users.
+  const { data: friends, isLoading: loadingFriends } = useListFriends();
+  const { data: searchResults, isLoading: loadingSearch } = useListUsers(
+    { search: searchTerm },
+    { query: { enabled: mode === 'players' && searchTerm.length > 0, queryKey: ['users', searchTerm] } },
+  );
+  const { data: foundParty, isLoading: loadingLookup, isError: lookupError } = useLookupPartyByCode(
+    { code: trimmedCode },
+    { query: { enabled: mode === 'party' && trimmedCode.length > 0, retry: false, queryKey: ['partyLookup', trimmedCode] } },
+  );
+
+  const createMut = useCreateParty();
+  const joinMut = useJoinParty();
+
+  const list = searchTerm ? searchResults : friends;
+  const loadingList = searchTerm ? loadingSearch : loadingFriends;
+
   const toggleUser = (user: User) => {
-    if (selectedUsers.find(u => u.id === user.id)) {
+    if (selectedUsers.find((u) => u.id === user.id)) {
       if (user.id === currentUser?.id) return; // Can't remove self
-      setSelectedUsers(selectedUsers.filter(u => u.id !== user.id));
+      setSelectedUsers(selectedUsers.filter((u) => u.id !== user.id));
     } else {
       setSelectedUsers([...selectedUsers, user]);
     }
   };
 
-  // Step 4 logic
-  const maxPlayersPerTeam = format ? parseInt(format[0]) : 0;
-  
-  const setupTeams = () => {
-    if (!format) return;
-    const slots = parseInt(format[0]);
-    setTeamA(Array(slots).fill(null));
-    setTeamB(Array(slots).fill(null));
-    setStep(4);
-  };
-
-  const assignPlayer = (user: User, team: 'A' | 'B', index: number) => {
-    // Remove from other slots first
-    const newTeamA = [...teamA].map(u => u?.id === user.id ? null : u);
-    const newTeamB = [...teamB].map(u => u?.id === user.id ? null : u);
-    
-    if (team === 'A') {
-      newTeamA[index] = user;
-    } else {
-      newTeamB[index] = user;
-    }
-    
-    setTeamA(newTeamA);
-    setTeamB(newTeamB);
-  };
-
-  const autoAssign = (user: User) => {
-    // If already assigned, unassign
-    if (teamA.find(u => u?.id === user.id)) {
-      setTeamA(teamA.map(u => u?.id === user.id ? null : u));
-      return;
-    }
-    if (teamB.find(u => u?.id === user.id)) {
-      setTeamB(teamB.map(u => u?.id === user.id ? null : u));
-      return;
-    }
-
-    // Find first empty slot
-    const emptyA = teamA.findIndex(u => u === null);
-    if (emptyA !== -1) {
-      const newA = [...teamA];
-      newA[emptyA] = user;
-      setTeamA(newA);
-      return;
-    }
-    
-    const emptyB = teamB.findIndex(u => u === null);
-    if (emptyB !== -1) {
-      const newB = [...teamB];
-      newB[emptyB] = user;
-      setTeamB(newB);
-      return;
-    }
-  };
-
-  const assignedUsers = [...teamA, ...teamB].filter(Boolean) as User[];
-  const spectators = selectedUsers.filter(u => !assignedUsers.find(au => au.id === u.id));
-  
-  const isTeamA_Full = teamA.filter(Boolean).length === maxPlayersPerTeam;
-  const isTeamB_Full = teamB.filter(Boolean).length === maxPlayersPerTeam;
-  const canProceedStep4 = isTeamA_Full && isTeamB_Full;
-
-  const handleStart = async () => {
-    if (!game || !format) return;
-    
+  const handleCreate = async () => {
     try {
-      const party = await createPartyMut.mutateAsync({
-        data: {
-          memberIds: selectedUsers.map(u => u.id),
-          game,
-          matchFormat: format
-        }
+      const party = await createMut.mutateAsync({
+        data: { memberIds: selectedUsers.map((u) => u.id) },
       });
-      
-      const match = await createMatchMut.mutateAsync({
-        data: {
-          partyId: party.id,
-          teamA: teamA.map(u => u!.id),
-          teamB: teamB.map(u => u!.id)
-        }
-      });
-      
-      toast({ title: 'Match Started!' });
-      setLocation(`/matches/${match.id}`);
+      setCreatedParty(party);
+      setStep(2);
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.error || 'Failed to start' });
+      toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed to create party' });
     }
   };
 
+  const handleJoin = async () => {
+    if (!foundParty) return;
+    try {
+      await joinMut.mutateAsync({ partyId: foundParty.id });
+      toast({ title: t('joined') });
+      setLocation(`/parties/${foundParty.id}`);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed to join' });
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!createdParty) return;
+    try {
+      await navigator.clipboard.writeText(createdParty.code);
+      setCopied(true);
+      toast({ title: t('copied') });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ variant: 'destructive', title: 'Error', description: 'Copy failed' });
+    }
+  };
+
+  const handleShare = async () => {
+    if (!createdParty) return;
+    const shareData = {
+      title: 'MatchHub',
+      text: `${t('partyCode')}: ${createdParty.code}`,
+    };
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch {
+        // user cancelled or share unavailable — fall back to copy
+      }
+    }
+    handleCopy();
+  };
+
+  // ---------------------------------------------------------------------------
+  // Step 2: party created — reveal the code
+  // ---------------------------------------------------------------------------
+  if (step === 2 && createdParty) {
+    return (
+      <div className="container max-w-screen-md mx-auto p-4 space-y-8 pb-24">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">{t('createParty')}</h1>
+          <div className="text-sm font-medium text-muted-foreground">Step 2 of 2</div>
+        </div>
+
+        <div className="flex space-x-2 rtl:space-x-reverse mb-6">
+          <div className="h-2 flex-1 rounded-full bg-primary" />
+          <div className="h-2 flex-1 rounded-full bg-primary" />
+        </div>
+
+        <Card className="bg-card/50 border-primary/20 shadow-lg">
+          <CardContent className="p-8 flex flex-col items-center text-center space-y-6">
+            <div className="text-sm uppercase tracking-wider text-muted-foreground">{t('yourPartyCode')}</div>
+            <div className="text-6xl font-black font-mono tracking-[0.3em] text-primary select-all">
+              {createdParty.code}
+            </div>
+            <p className="text-sm text-muted-foreground">{t('shareCodeHint')}</p>
+            <div className="grid grid-cols-2 gap-4 w-full max-w-sm pt-2">
+              <Button variant="outline" className="h-12" onClick={handleShare}>
+                <Share2 className="mr-2 h-4 w-4" /> {t('share')}
+              </Button>
+              <Button variant="outline" className="h-12" onClick={handleCopy}>
+                {copied ? <Check className="mr-2 h-4 w-4 text-primary" /> : <Copy className="mr-2 h-4 w-4" />}
+                {copied ? t('copied') : t('copy')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button size="lg" className="font-bold" onClick={() => setLocation(`/parties/${createdParty.id}`)}>
+            {t('next')} <ChevronRight className="ml-2 h-4 w-4 rtl:rotate-180" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 1: pick members (optional) OR join a party by code
+  // ---------------------------------------------------------------------------
   return (
     <div className="container max-w-screen-md mx-auto p-4 space-y-6 pb-24">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{t('createParty')}</h1>
-        <div className="text-sm font-medium text-muted-foreground">Step {step} of 5</div>
+        <div className="text-sm font-medium text-muted-foreground">Step 1 of 2</div>
       </div>
 
-      <div className="flex space-x-2 rtl:space-x-reverse mb-6">
-        {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className={cn("h-2 flex-1 rounded-full", step >= i ? "bg-primary" : "bg-muted")} />
+      <div className="flex space-x-2 rtl:space-x-reverse mb-2">
+        <div className="h-2 flex-1 rounded-full bg-primary" />
+        <div className="h-2 flex-1 rounded-full bg-muted" />
+      </div>
+
+      {/* Search-mode toggle */}
+      <div className="grid grid-cols-2 gap-2 p-1 bg-muted/50 rounded-lg">
+        {(['players', 'party'] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={cn(
+              'py-2 rounded-md text-sm font-medium transition-colors',
+              mode === m ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {m === 'players' ? t('searchPlayers') : t('searchParty')}
+          </button>
         ))}
       </div>
 
-      {step === 1 && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+      {mode === 'players' ? (
+        <div className="space-y-4 animate-in fade-in">
           <h2 className="text-xl font-semibold">{t('step1')}</h2>
-          
+
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground rtl:left-auto rtl:right-3" />
-            <Input 
-              placeholder={t('searchUsers')} 
+            <Input
+              placeholder={t('searchUsers')}
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               className="pl-9 rtl:pl-3 rtl:pr-9"
             />
           </div>
 
           <div className="flex flex-wrap gap-2 min-h-[40px]">
-            {selectedUsers.map(u => (
+            {selectedUsers.map((u) => (
               <Badge key={u.id} variant="secondary" className="flex items-center gap-1 pl-1">
                 <Avatar className="h-5 w-5">
-                  <AvatarFallback className="text-[10px]">{u.displayName.substring(0,2)}</AvatarFallback>
+                  <AvatarFallback className="text-[10px]">{u.displayName.substring(0, 2)}</AvatarFallback>
                 </Avatar>
                 {u.displayName}
                 {u.id !== currentUser?.id && (
@@ -177,231 +222,83 @@ export default function CreateParty() {
           </div>
 
           <div className="bg-card rounded-lg border h-[300px] overflow-y-auto p-2 space-y-1">
-            {loadingUsers ? (
+            {loadingList ? (
               <div className="flex justify-center p-4"><Spinner /></div>
-            ) : users?.map(u => {
-              const isSelected = selectedUsers.some(su => su.id === u.id);
-              return (
-                <div 
-                  key={u.id}
-                  onClick={() => toggleUser(u)}
-                  className={cn(
-                    "flex items-center justify-between p-3 rounded-md cursor-pointer transition-colors",
-                    isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-muted"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>{u.displayName.substring(0,2)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium text-sm">{u.displayName}</div>
-                      <div className="text-xs text-muted-foreground">@{u.username}</div>
+            ) : list && list.length > 0 ? (
+              list.map((u) => {
+                const isSelected = selectedUsers.some((su) => su.id === u.id);
+                return (
+                  <div
+                    key={u.id}
+                    onClick={() => toggleUser(u)}
+                    className={cn(
+                      'flex items-center justify-between p-3 rounded-md cursor-pointer transition-colors',
+                      isSelected ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted',
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback>{u.displayName.substring(0, 2)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium text-sm">{u.displayName}</div>
+                        <div className="text-xs text-muted-foreground">@{u.username}</div>
+                      </div>
                     </div>
+                    {isSelected && <Check className="h-4 w-4 text-primary" />}
                   </div>
-                  {isSelected && <Check className="h-4 w-4 text-primary" />}
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <div className="flex h-full items-center justify-center text-center text-sm text-muted-foreground p-4">
+                {searchTerm ? t('noUsers') : t('noFriendsYet')}
+              </div>
+            )}
           </div>
 
-          <div className="flex justify-end pt-4">
-            <Button onClick={() => setStep(2)} disabled={selectedUsers.length < 2}>
-              {t('next')} <ChevronRight className="ml-2 h-4 w-4 rtl:rotate-180" />
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleCreate} disabled={createMut.isPending}>
+              {createMut.isPending ? <Spinner className="mr-2" /> : <Users className="mr-2 h-4 w-4" />}
+              {t('createPartyAction')}
             </Button>
           </div>
         </div>
-      )}
+      ) : (
+        <div className="space-y-4 animate-in fade-in">
+          <h2 className="text-xl font-semibold">{t('joinParty')}</h2>
 
-      {step === 2 && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
-          <h2 className="text-xl font-semibold">{t('step2')}</h2>
-          
-          <div className="grid grid-cols-2 gap-4">
-            {(['fifa', 'pes'] as const).map(g => (
-              <Card 
-                key={g}
-                className={cn(
-                  "cursor-pointer transition-all border-2",
-                  game === g ? "border-primary bg-primary/5" : "hover:border-primary/50"
-                )}
-                onClick={() => setGame(g)}
-              >
-                <CardContent className="flex flex-col items-center justify-center p-8 h-40">
-                  <Gamepad2 className={cn("h-12 w-12 mb-4", game === g ? "text-primary" : "text-muted-foreground")} />
-                  <span className="text-2xl font-bold tracking-wider">{g.toUpperCase()}</span>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Input
+            placeholder={t('enterPartyCode')}
+            value={code}
+            inputMode="numeric"
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            className="text-center text-2xl font-mono tracking-[0.3em] h-16"
+          />
 
-          <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={() => setStep(1)}>{t('back')}</Button>
-            <Button onClick={() => setStep(3)} disabled={!game}>
-              {t('next')} <ChevronRight className="ml-2 h-4 w-4 rtl:rotate-180" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
-          <h2 className="text-xl font-semibold">{t('step3')}</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {(['1v1', '2v2', '3v3'] as const).map(f => {
-              const reqPlayers = parseInt(f[0]) * 2;
-              const hasEnough = selectedUsers.length >= reqPlayers;
-              
-              return (
-                <Card 
-                  key={f}
-                  className={cn(
-                    "transition-all border-2",
-                    !hasEnough ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-primary/50",
-                    format === f ? "border-primary bg-primary/5" : ""
-                  )}
-                  onClick={() => hasEnough && setFormat(f)}
-                >
-                  <CardContent className="flex flex-col items-center justify-center p-6 h-32">
-                    <Users className={cn("h-8 w-8 mb-2", format === f ? "text-primary" : "text-muted-foreground")} />
-                    <span className="text-xl font-bold">{f}</span>
-                    {!hasEnough && <span className="text-xs text-destructive mt-1">Need {reqPlayers} players</span>}
+          {trimmedCode.length > 0 && (
+            <div className="min-h-[80px]">
+              {loadingLookup ? (
+                <div className="flex justify-center p-4"><Spinner /></div>
+              ) : foundParty ? (
+                <Card className="border-primary/30">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <div className="font-mono font-bold text-lg">{foundParty.code}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {foundParty.members.length} {t('members')} · {foundParty.creator?.displayName}
+                      </div>
+                    </div>
+                    <Button onClick={handleJoin} disabled={joinMut.isPending}>
+                      {joinMut.isPending && <Spinner className="mr-2" />}
+                      {t('join')}
+                    </Button>
                   </CardContent>
                 </Card>
-              );
-            })}
-          </div>
-
-          <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={() => setStep(2)}>{t('back')}</Button>
-            <Button onClick={setupTeams} disabled={!format}>
-              {t('next')} <ChevronRight className="ml-2 h-4 w-4 rtl:rotate-180" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {step === 4 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-          <h2 className="text-xl font-semibold">{t('step4')}</h2>
-          
-          <div className="bg-muted/30 p-4 rounded-lg flex flex-wrap gap-2 items-center">
-            <span className="text-sm font-medium mr-2">Click to auto-assign:</span>
-            {selectedUsers.map(u => {
-              const isA = teamA.find(au => au?.id === u.id);
-              const isB = teamB.find(bu => bu?.id === u.id);
-              return (
-                <Badge 
-                  key={u.id}
-                  variant={isA ? "default" : isB ? "destructive" : "outline"}
-                  className="cursor-pointer py-1 px-3"
-                  onClick={() => autoAssign(u)}
-                >
-                  {u.displayName}
-                </Badge>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-3">
-              <h3 className="font-bold text-center text-primary">{t('teamA')}</h3>
-              {teamA.map((u, i) => (
-                <div key={`a-${i}`} className="h-14 border-2 border-dashed rounded-lg border-primary/30 flex items-center justify-center bg-primary/5">
-                  {u ? (
-                    <div className="flex items-center justify-between w-full px-4">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8"><AvatarFallback>{u.displayName.substring(0,2)}</AvatarFallback></Avatar>
-                        <span className="font-medium">{u.displayName}</span>
-                      </div>
-                      <Button variant="ghost" size="icon" onClick={() => assignPlayer(null as any, 'A', i)}><X className="h-4 w-4" /></Button>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">Empty Slot</span>
-                  )}
-                </div>
-              ))}
+              ) : lookupError ? (
+                <div className="text-center text-sm text-destructive p-4">{t('partyNotFound')}</div>
+              ) : null}
             </div>
-            
-            <div className="space-y-3">
-              <h3 className="font-bold text-center text-destructive">{t('teamB')}</h3>
-              {teamB.map((u, i) => (
-                <div key={`b-${i}`} className="h-14 border-2 border-dashed rounded-lg border-destructive/30 flex items-center justify-center bg-destructive/5">
-                  {u ? (
-                    <div className="flex items-center justify-between w-full px-4">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8"><AvatarFallback>{u.displayName.substring(0,2)}</AvatarFallback></Avatar>
-                        <span className="font-medium">{u.displayName}</span>
-                      </div>
-                      <Button variant="ghost" size="icon" onClick={() => assignPlayer(null as any, 'B', i)}><X className="h-4 w-4" /></Button>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">Empty Slot</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={() => setStep(3)}>{t('back')}</Button>
-            <Button onClick={() => setStep(5)} disabled={!canProceedStep4}>
-              {t('next')} <ChevronRight className="ml-2 h-4 w-4 rtl:rotate-180" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {step === 5 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-          <h2 className="text-xl font-semibold">{t('step5')}</h2>
-          
-          <Card className="bg-card/50 border-primary/20 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex justify-center gap-4 mb-6">
-                <Badge variant="outline" className="text-lg py-1 px-4">{game?.toUpperCase()}</Badge>
-                <Badge variant="secondary" className="text-lg py-1 px-4">{format}</Badge>
-              </div>
-              
-              <div className="flex justify-between items-center px-4 md:px-12">
-                <div className="text-center space-y-2">
-                  <h3 className="font-bold text-xl text-primary">{t('teamA')}</h3>
-                  {teamA.map(u => (
-                    <div key={`sa-${u?.id}`} className="font-medium">{u?.displayName}</div>
-                  ))}
-                </div>
-                
-                <div className="text-3xl font-black text-muted-foreground/30 italic">VS</div>
-                
-                <div className="text-center space-y-2">
-                  <h3 className="font-bold text-xl text-destructive">{t('teamB')}</h3>
-                  {teamB.map(u => (
-                    <div key={`sb-${u?.id}`} className="font-medium">{u?.displayName}</div>
-                  ))}
-                </div>
-              </div>
-              
-              {spectators.length > 0 && (
-                <div className="mt-8 pt-4 border-t text-center">
-                  <div className="text-sm text-muted-foreground mb-2">{t('spectators')}</div>
-                  <div className="flex justify-center flex-wrap gap-2">
-                    {spectators.map(u => (
-                      <Badge key={`spec-${u.id}`} variant="outline">{u.displayName}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={() => setStep(4)} disabled={createPartyMut.isPending || createMatchMut.isPending}>{t('back')}</Button>
-            <Button size="lg" className="font-bold" onClick={handleStart} disabled={createPartyMut.isPending || createMatchMut.isPending}>
-              {(createPartyMut.isPending || createMatchMut.isPending) ? <Spinner className="mr-2" /> : <Gamepad2 className="mr-2 h-5 w-5" />}
-              {t('startMatch')}
-            </Button>
-          </div>
+          )}
         </div>
       )}
     </div>

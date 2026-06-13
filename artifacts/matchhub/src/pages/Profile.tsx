@@ -1,5 +1,14 @@
-import { useLocation, useParams } from 'wouter';
-import { useGetUser, useGetUserMatches } from '@workspace/api-client-react';
+import { useState } from 'react';
+import { Link, useLocation, useParams } from 'wouter';
+import {
+  useGetUser,
+  useGetUserMatches,
+  useFollowUser,
+  useUnfollowUser,
+  useListFollowers,
+  useListFollowing,
+  getGetUserQueryKey,
+} from '@workspace/api-client-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { MatchCard } from '@/components/MatchCard';
@@ -7,7 +16,15 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
-import { Trophy, Activity, Target, Hash } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Trophy, Activity, Target, UserPlus, UserMinus } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function Profile() {
   const { userId } = useParams();
@@ -34,9 +51,38 @@ export default function Profile() {
     query: { enabled: !!idToLoad, queryKey: ['userMatches', idToLoad, 'pes'] }
   });
 
+  const queryClient = useQueryClient();
+  const [followDialog, setFollowDialog] = useState<'followers' | 'following' | null>(null);
+  const followMut = useFollowUser();
+  const unfollowMut = useUnfollowUser();
+  const { data: followersList } = useListFollowers(idToLoad as number, {
+    query: { enabled: !!idToLoad && followDialog === 'followers', queryKey: ['followers', idToLoad] },
+  });
+  const { data: followingList } = useListFollowing(idToLoad as number, {
+    query: { enabled: !!idToLoad && followDialog === 'following', queryKey: ['following', idToLoad] },
+  });
+
   if (loadingProfile || !userProfile) {
     return <div className="flex h-screen items-center justify-center"><Spinner size="lg" /></div>;
   }
+
+  const isOwnProfile = idToLoad === currentUser?.id;
+
+  const toggleFollow = async () => {
+    if (!idToLoad) return;
+    try {
+      if (userProfile.isFollowing) {
+        await unfollowMut.mutateAsync({ userId: idToLoad });
+      } else {
+        await followMut.mutateAsync({ userId: idToLoad });
+      }
+      queryClient.invalidateQueries({ queryKey: ['user', idToLoad] });
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const dialogList = followDialog === 'followers' ? followersList : followingList;
 
   const StatBox = ({ title, value, icon: Icon, colorClass }: any) => (
     <Card className="bg-card/40 border-border/50">
@@ -59,6 +105,38 @@ export default function Profile() {
         <div className="text-center md:text-left rtl:md:text-right">
           <h1 className="text-3xl font-bold">{userProfile.displayName}</h1>
           <p className="text-muted-foreground text-lg">@{userProfile.username}</p>
+
+          <div className="flex items-center justify-center md:justify-start gap-4 mt-3">
+            <button
+              onClick={() => setFollowDialog('followers')}
+              className="text-sm hover:text-primary transition-colors"
+            >
+              <span className="font-bold">{userProfile.followerCount ?? 0}</span>{' '}
+              <span className="text-muted-foreground">{t('followers')}</span>
+            </button>
+            <button
+              onClick={() => setFollowDialog('following')}
+              className="text-sm hover:text-primary transition-colors"
+            >
+              <span className="font-bold">{userProfile.followingCount ?? 0}</span>{' '}
+              <span className="text-muted-foreground">{t('following')}</span>
+            </button>
+
+            {!isOwnProfile && (
+              <Button
+                size="sm"
+                variant={userProfile.isFollowing ? 'outline' : 'default'}
+                onClick={toggleFollow}
+                disabled={followMut.isPending || unfollowMut.isPending}
+              >
+                {userProfile.isFollowing ? (
+                  <><UserMinus className="mr-2 h-4 w-4" />{t('unfollow')}</>
+                ) : (
+                  <><UserPlus className="mr-2 h-4 w-4" />{t('follow')}</>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
         <div className="md:ml-auto flex gap-4 text-center">
           <div>
@@ -95,7 +173,7 @@ export default function Profile() {
           </div>
           
           <h3 className="font-bold text-xl mb-4">Match History</h3>
-          {loadingFifa ? <Spinner /> : fifaMatches?.length ? fifaMatches.map(m => <MatchCard key={m.id} match={m} />) : <div className="text-muted-foreground text-center py-8">{t('emptyState')}</div>}
+          {loadingFifa ? <Spinner /> : fifaMatches?.length ? fifaMatches.map(m => <MatchCard key={m.id} match={m} perspectiveUserId={idToLoad} />) : <div className="text-muted-foreground text-center py-8">{t('emptyState')}</div>}
         </TabsContent>
         
         <TabsContent value="pes" className="mt-6 space-y-4">
@@ -107,9 +185,41 @@ export default function Profile() {
           </div>
           
           <h3 className="font-bold text-xl mb-4">Match History</h3>
-          {loadingPes ? <Spinner /> : pesMatches?.length ? pesMatches.map(m => <MatchCard key={m.id} match={m} />) : <div className="text-muted-foreground text-center py-8">{t('emptyState')}</div>}
+          {loadingPes ? <Spinner /> : pesMatches?.length ? pesMatches.map(m => <MatchCard key={m.id} match={m} perspectiveUserId={idToLoad} />) : <div className="text-muted-foreground text-center py-8">{t('emptyState')}</div>}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={followDialog !== null} onOpenChange={(open) => !open && setFollowDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{followDialog === 'followers' ? t('followers') : t('following')}</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-1">
+            {dialogList && dialogList.length > 0 ? (
+              dialogList.map((u) => (
+                <Link
+                  key={u.id}
+                  href={`/profile/${u.id}`}
+                  onClick={() => setFollowDialog(null)}
+                  className="flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors"
+                >
+                  <Avatar className="h-9 w-9">
+                    <AvatarFallback>{u.displayName.substring(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium text-sm">{u.displayName}</div>
+                    <div className="text-xs text-muted-foreground">@{u.username}</div>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <div className="text-center text-sm text-muted-foreground py-8">
+                {followDialog === 'followers' ? t('noFollowers') : t('noFollowing')}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

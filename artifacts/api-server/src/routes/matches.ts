@@ -10,6 +10,7 @@ import {
 import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { buildMatchesWithPlayers } from "./matchHelpers";
+import { usersInActiveParty } from "./parties";
 import { parseIdParam } from "../lib/http";
 
 const router = Router();
@@ -19,17 +20,26 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
   const matchFormat = req.query.matchFormat as string | undefined;
   const userId = req.query.userId ? parseInt(req.query.userId as string) : undefined;
   const winType = req.query.winType as string | undefined;
+  const partyId = req.query.partyId ? parseInt(req.query.partyId as string) : undefined;
 
-  const matches = await buildMatchesWithPlayers({ game, matchFormat, userId, winType });
+  const matches = await buildMatchesWithPlayers({ game, matchFormat, userId, winType, partyId });
   res.json(matches);
 });
 
 router.post("/", requireAuth, async (req: Request, res: Response) => {
-  const { partyId, teamA, teamB } = req.body;
+  const { partyId, game, matchFormat, teamA, teamB } = req.body;
   const createdBy = req.session.userId!;
 
   if (!partyId || !Array.isArray(teamA) || !Array.isArray(teamB)) {
     res.status(400).json({ error: "partyId, teamA, and teamB are required" });
+    return;
+  }
+  if (!game || !["fifa", "pes"].includes(game)) {
+    res.status(400).json({ error: "Game must be fifa or pes" });
+    return;
+  }
+  if (!matchFormat || !["1v1", "2v2", "3v3"].includes(matchFormat)) {
+    res.status(400).json({ error: "Match format must be 1v1, 2v2, or 3v3" });
     return;
   }
 
@@ -55,13 +65,13 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
-  // Validate team sizes match format
+  // Validate team sizes match the chosen format
   const formatSizes: Record<string, number> = { "1v1": 1, "2v2": 2, "3v3": 3 };
-  const required = formatSizes[party.matchFormat];
+  const required = formatSizes[matchFormat];
   if (teamAIds.length !== required || teamBIds.length !== required) {
     res
       .status(400)
-      .json({ error: `Each team must have exactly ${required} player(s) for ${party.matchFormat}` });
+      .json({ error: `Each team must have exactly ${required} player(s) for ${matchFormat}` });
     return;
   }
 
@@ -80,13 +90,23 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
+  // Guard the one-active-party rule: no active player may belong to a different
+  // active party (e.g. they joined another room since this party last played).
+  const busy = await usersInActiveParty(activePlayers, partyId);
+  if (busy.length > 0) {
+    res.status(409).json({
+      error: "One or more players are already in another active party",
+    });
+    return;
+  }
+
   // Create match
   const [match] = await db
     .insert(matchesTable)
     .values({
       partyId,
-      game: party.game,
-      matchFormat: party.matchFormat,
+      game,
+      matchFormat,
       status: "in_progress",
       createdBy,
       startedAt: new Date(),
@@ -187,13 +207,21 @@ router.post("/:matchId/result", requireAuth, async (req: Request, res: Response)
     .from(matchPlayersTable)
     .where(and(eq(matchPlayersTable.matchId, matchId), eq(matchPlayersTable.isSpectator, 0)));
 
+  // Only the party creator or the match creator may submit the result.
+  const [party] = await db
+    .select()
+    .from(partiesTable)
+    .where(eq(partiesTable.id, match.partyId))
+    .limit(1);
+
   const currentUserId = req.session.userId!;
   const canSubmitResult =
-    match.createdBy === currentUserId ||
-    players.some((player) => player.userId === currentUserId);
+    match.createdBy === currentUserId || party?.createdBy === currentUserId;
 
   if (!canSubmitResult) {
-    res.status(403).json({ error: "You can only submit results for your own matches" });
+    res
+      .status(403)
+      .json({ error: "Only the party or match creator can submit the result" });
     return;
   }
 

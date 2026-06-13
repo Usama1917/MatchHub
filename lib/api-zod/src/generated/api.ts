@@ -92,6 +92,19 @@ export const ListUsersResponse = zod.array(ListUsersResponseItem)
 
 
 /**
+ * @summary List mutual follows (users who follow you back)
+ */
+export const ListFriendsResponseItem = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})
+export const ListFriendsResponse = zod.array(ListFriendsResponseItem)
+
+
+/**
  * @summary Get user profile
  */
 export const GetUserParams = zod.object({
@@ -133,7 +146,10 @@ export const GetUserResponse = zod.object({
   "points": zod.number(),
   "winRate": zod.number()
 })
-})
+}),
+  "followerCount": zod.number().optional(),
+  "followingCount": zod.number().optional(),
+  "isFollowing": zod.boolean().optional()
 })
 
 
@@ -193,13 +209,72 @@ export const GetUserMatchesResponse = zod.array(GetUserMatchesResponseItem)
 
 
 /**
+ * @summary Follow a user
+ */
+export const FollowUserParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const FollowUserResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Unfollow a user
+ */
+export const UnfollowUserParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const UnfollowUserResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary List users who follow this user
+ */
+export const ListFollowersParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const ListFollowersResponseItem = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})
+export const ListFollowersResponse = zod.array(ListFollowersResponseItem)
+
+
+/**
+ * @summary List users this user follows
+ */
+export const ListFollowingParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const ListFollowingResponseItem = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})
+export const ListFollowingResponse = zod.array(ListFollowingResponseItem)
+
+
+/**
  * @summary List parties
  */
 export const ListPartiesResponseItem = zod.object({
   "id": zod.number(),
   "createdBy": zod.number(),
-  "game": zod.enum(['fifa', 'pes']),
-  "matchFormat": zod.enum(['1v1', '2v2', '3v3']),
+  "code": zod.string(),
   "status": zod.enum(['pending', 'in_progress', 'completed']),
   "createdAt": zod.coerce.date(),
   "members": zod.array(zod.object({
@@ -215,7 +290,14 @@ export const ListPartiesResponseItem = zod.object({
   "displayName": zod.string(),
   "role": zod.enum(['user', 'admin']),
   "createdAt": zod.coerce.date()
-}).optional()
+}).optional(),
+  "pendingInvites": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})).optional()
 })
 export const ListPartiesResponse = zod.array(ListPartiesResponseItem)
 
@@ -223,14 +305,78 @@ export const ListPartiesResponse = zod.array(ListPartiesResponseItem)
 /**
  * @summary Create a new party
  */
-export const createPartyBodyMemberIdsMin = 2;
-
-
-
 export const CreatePartyBody = zod.object({
-  "memberIds": zod.array(zod.number()).min(createPartyBodyMemberIdsMin),
-  "game": zod.enum(['fifa', 'pes']),
-  "matchFormat": zod.enum(['1v1', '2v2', '3v3'])
+  "memberIds": zod.array(zod.number()).optional()
+})
+
+
+/**
+ * @summary Get the current user's active party (or null)
+ */
+export const GetMyActivePartyResponse = zod.union([zod.object({
+  "id": zod.number(),
+  "createdBy": zod.number(),
+  "code": zod.string(),
+  "status": zod.enum(['pending', 'in_progress', 'completed']),
+  "createdAt": zod.coerce.date(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})),
+  "creator": zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+}).optional(),
+  "pendingInvites": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})).optional()
+}),zod.null()])
+
+
+/**
+ * @summary Find a party by its code
+ */
+export const LookupPartyByCodeQueryParams = zod.object({
+  "code": zod.coerce.string()
+})
+
+export const LookupPartyByCodeResponse = zod.object({
+  "id": zod.number(),
+  "createdBy": zod.number(),
+  "code": zod.string(),
+  "status": zod.enum(['pending', 'in_progress', 'completed']),
+  "createdAt": zod.coerce.date(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})),
+  "creator": zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+}).optional(),
+  "pendingInvites": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})).optional()
 })
 
 
@@ -244,8 +390,7 @@ export const GetPartyParams = zod.object({
 export const GetPartyResponse = zod.object({
   "id": zod.number(),
   "createdBy": zod.number(),
-  "game": zod.enum(['fifa', 'pes']),
-  "matchFormat": zod.enum(['1v1', '2v2', '3v3']),
+  "code": zod.string(),
   "status": zod.enum(['pending', 'in_progress', 'completed']),
   "createdAt": zod.coerce.date(),
   "members": zod.array(zod.object({
@@ -261,7 +406,134 @@ export const GetPartyResponse = zod.object({
   "displayName": zod.string(),
   "role": zod.enum(['user', 'admin']),
   "createdAt": zod.coerce.date()
-}).optional()
+}).optional(),
+  "pendingInvites": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})).optional()
+})
+
+
+/**
+ * @summary Join a party by id
+ */
+export const JoinPartyParams = zod.object({
+  "partyId": zod.coerce.number()
+})
+
+export const JoinPartyResponse = zod.object({
+  "id": zod.number(),
+  "createdBy": zod.number(),
+  "code": zod.string(),
+  "status": zod.enum(['pending', 'in_progress', 'completed']),
+  "createdAt": zod.coerce.date(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})),
+  "creator": zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+}).optional(),
+  "pendingInvites": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})).optional()
+})
+
+
+/**
+ * @summary Close a party (creator only)
+ */
+export const ClosePartyParams = zod.object({
+  "partyId": zod.coerce.number()
+})
+
+export const ClosePartyResponse = zod.object({
+  "id": zod.number(),
+  "createdBy": zod.number(),
+  "code": zod.string(),
+  "status": zod.enum(['pending', 'in_progress', 'completed']),
+  "createdAt": zod.coerce.date(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})),
+  "creator": zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+}).optional(),
+  "pendingInvites": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})).optional()
+})
+
+
+/**
+ * @summary List my pending party invitations
+ */
+export const ListMyInvitationsResponseItem = zod.object({
+  "id": zod.number(),
+  "partyId": zod.number(),
+  "partyCode": zod.string(),
+  "status": zod.enum(['pending', 'accepted', 'rejected']),
+  "createdAt": zod.coerce.date(),
+  "fromUser": zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})
+})
+export const ListMyInvitationsResponse = zod.array(ListMyInvitationsResponseItem)
+
+
+/**
+ * @summary Accept a party invitation
+ */
+export const AcceptInvitationParams = zod.object({
+  "invitationId": zod.coerce.number()
+})
+
+export const AcceptInvitationResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Reject a party invitation
+ */
+export const RejectInvitationParams = zod.object({
+  "invitationId": zod.coerce.number()
+})
+
+export const RejectInvitationResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
 })
 
 
@@ -272,7 +544,8 @@ export const ListMatchesQueryParams = zod.object({
   "game": zod.enum(['fifa', 'pes']).optional(),
   "matchFormat": zod.enum(['1v1', '2v2', '3v3']).optional(),
   "userId": zod.coerce.number().optional(),
-  "winType": zod.enum(['normal', 'penalties', 'golden_goal']).optional()
+  "winType": zod.enum(['normal', 'penalties', 'golden_goal']).optional(),
+  "partyId": zod.coerce.number().optional()
 })
 
 export const ListMatchesResponseItem = zod.object({
@@ -323,6 +596,8 @@ export const ListMatchesResponse = zod.array(ListMatchesResponseItem)
  */
 export const CreateMatchBody = zod.object({
   "partyId": zod.number(),
+  "game": zod.enum(['fifa', 'pes']),
+  "matchFormat": zod.enum(['1v1', '2v2', '3v3']),
   "teamA": zod.array(zod.number()),
   "teamB": zod.array(zod.number())
 })

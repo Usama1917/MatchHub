@@ -12,6 +12,8 @@ import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import CreateParty from "@/pages/CreateParty";
+import Party from "@/pages/Party";
+import NewMatch from "@/pages/NewMatch";
 import MatchDetail from "@/pages/MatchDetail";
 import SubmitResult from "@/pages/SubmitResult";
 import History from "@/pages/History";
@@ -36,6 +38,12 @@ function Router() {
             </Route>
             <Route path="/party/new">
               <ProtectedRoute><CreateParty /></ProtectedRoute>
+            </Route>
+            <Route path="/parties/:partyId/new-match">
+              <ProtectedRoute><NewMatch /></ProtectedRoute>
+            </Route>
+            <Route path="/parties/:partyId">
+              <ProtectedRoute><Party /></ProtectedRoute>
             </Route>
             <Route path="/matches/:matchId">
               <ProtectedRoute><MatchDetail /></ProtectedRoute>

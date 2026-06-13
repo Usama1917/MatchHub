@@ -26,9 +26,11 @@ import type {
   ErrorResponse,
   GetUserMatchesParams,
   HealthStatus,
+  Invitation,
   ListMatchesParams,
   ListUsersParams,
   LoginInput,
+  LookupPartyByCodeParams,
   Match,
   MatchInput,
   MatchResultInput,
@@ -503,6 +505,83 @@ export function useListUsers<TData = Awaited<ReturnType<typeof listUsers>>, TErr
 
 
 
+export const getListFriendsUrl = () => {
+
+
+
+
+  return `/api/users/friends`
+}
+
+/**
+ * @summary List mutual follows (users who follow you back)
+ */
+export const listFriends = async ( options?: RequestInit): Promise<User[]> => {
+
+  return customFetch<User[]>(getListFriendsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFriendsQueryKey = () => {
+    return [
+    `/api/users/friends`
+    ] as const;
+    }
+
+
+export const getListFriendsQueryOptions = <TData = Awaited<ReturnType<typeof listFriends>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFriends>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFriendsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFriends>>> = ({ signal }) => listFriends({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFriends>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFriendsQueryResult = NonNullable<Awaited<ReturnType<typeof listFriends>>>
+export type ListFriendsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List mutual follows (users who follow you back)
+ */
+
+export function useListFriends<TData = Awaited<ReturnType<typeof listFriends>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFriends>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFriendsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getGetUserUrl = (userId: number,) => {
 
 
@@ -669,6 +748,300 @@ export function useGetUserMatches<TData = Awaited<ReturnType<typeof getUserMatch
 
 
 
+export const getFollowUserUrl = (userId: number,) => {
+
+
+
+
+  return `/api/users/${userId}/follow`
+}
+
+/**
+ * @summary Follow a user
+ */
+export const followUser = async (userId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getFollowUserUrl(userId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getFollowUserMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof followUser>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof followUser>>, TError,{userId: number}, TContext> => {
+
+const mutationKey = ['followUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof followUser>>, {userId: number}> = (props) => {
+          const {userId} = props ?? {};
+
+          return  followUser(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FollowUserMutationResult = NonNullable<Awaited<ReturnType<typeof followUser>>>
+
+    export type FollowUserMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Follow a user
+ */
+export const useFollowUser = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof followUser>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof followUser>>,
+        TError,
+        {userId: number},
+        TContext
+      > => {
+      return useMutation(getFollowUserMutationOptions(options));
+    }
+
+export const getUnfollowUserUrl = (userId: number,) => {
+
+
+
+
+  return `/api/users/${userId}/follow`
+}
+
+/**
+ * @summary Unfollow a user
+ */
+export const unfollowUser = async (userId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getUnfollowUserUrl(userId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getUnfollowUserMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unfollowUser>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unfollowUser>>, TError,{userId: number}, TContext> => {
+
+const mutationKey = ['unfollowUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unfollowUser>>, {userId: number}> = (props) => {
+          const {userId} = props ?? {};
+
+          return  unfollowUser(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnfollowUserMutationResult = NonNullable<Awaited<ReturnType<typeof unfollowUser>>>
+
+    export type UnfollowUserMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Unfollow a user
+ */
+export const useUnfollowUser = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unfollowUser>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unfollowUser>>,
+        TError,
+        {userId: number},
+        TContext
+      > => {
+      return useMutation(getUnfollowUserMutationOptions(options));
+    }
+
+export const getListFollowersUrl = (userId: number,) => {
+
+
+
+
+  return `/api/users/${userId}/followers`
+}
+
+/**
+ * @summary List users who follow this user
+ */
+export const listFollowers = async (userId: number, options?: RequestInit): Promise<User[]> => {
+
+  return customFetch<User[]>(getListFollowersUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFollowersQueryKey = (userId: number,) => {
+    return [
+    `/api/users/${userId}/followers`
+    ] as const;
+    }
+
+
+export const getListFollowersQueryOptions = <TData = Awaited<ReturnType<typeof listFollowers>>, TError = ErrorType<unknown>>(userId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFollowers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFollowersQueryKey(userId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFollowers>>> = ({ signal }) => listFollowers(userId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(userId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFollowers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFollowersQueryResult = NonNullable<Awaited<ReturnType<typeof listFollowers>>>
+export type ListFollowersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List users who follow this user
+ */
+
+export function useListFollowers<TData = Awaited<ReturnType<typeof listFollowers>>, TError = ErrorType<unknown>>(
+ userId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFollowers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFollowersQueryOptions(userId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListFollowingUrl = (userId: number,) => {
+
+
+
+
+  return `/api/users/${userId}/following`
+}
+
+/**
+ * @summary List users this user follows
+ */
+export const listFollowing = async (userId: number, options?: RequestInit): Promise<User[]> => {
+
+  return customFetch<User[]>(getListFollowingUrl(userId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFollowingQueryKey = (userId: number,) => {
+    return [
+    `/api/users/${userId}/following`
+    ] as const;
+    }
+
+
+export const getListFollowingQueryOptions = <TData = Awaited<ReturnType<typeof listFollowing>>, TError = ErrorType<unknown>>(userId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFollowing>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFollowingQueryKey(userId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFollowing>>> = ({ signal }) => listFollowing(userId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(userId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFollowing>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFollowingQueryResult = NonNullable<Awaited<ReturnType<typeof listFollowing>>>
+export type ListFollowingQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List users this user follows
+ */
+
+export function useListFollowing<TData = Awaited<ReturnType<typeof listFollowing>>, TError = ErrorType<unknown>>(
+ userId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFollowing>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFollowingQueryOptions(userId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getListPartiesUrl = () => {
 
 
@@ -817,6 +1190,167 @@ export const useCreateParty = <TError = ErrorType<ErrorResponse>,
       return useMutation(getCreatePartyMutationOptions(options));
     }
 
+export const getGetMyActivePartyUrl = () => {
+
+
+
+
+  return `/api/parties/active`
+}
+
+/**
+ * @summary Get the current user's active party (or null)
+ */
+export const getMyActiveParty = async ( options?: RequestInit): Promise<Party | null> => {
+
+  return customFetch<Party | null>(getGetMyActivePartyUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyActivePartyQueryKey = () => {
+    return [
+    `/api/parties/active`
+    ] as const;
+    }
+
+
+export const getGetMyActivePartyQueryOptions = <TData = Awaited<ReturnType<typeof getMyActiveParty>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyActiveParty>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyActivePartyQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyActiveParty>>> = ({ signal }) => getMyActiveParty({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyActiveParty>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyActivePartyQueryResult = NonNullable<Awaited<ReturnType<typeof getMyActiveParty>>>
+export type GetMyActivePartyQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get the current user's active party (or null)
+ */
+
+export function useGetMyActiveParty<TData = Awaited<ReturnType<typeof getMyActiveParty>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyActiveParty>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyActivePartyQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getLookupPartyByCodeUrl = (params: LookupPartyByCodeParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/parties/lookup?${stringifiedParams}` : `/api/parties/lookup`
+}
+
+/**
+ * @summary Find a party by its code
+ */
+export const lookupPartyByCode = async (params: LookupPartyByCodeParams, options?: RequestInit): Promise<Party> => {
+
+  return customFetch<Party>(getLookupPartyByCodeUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getLookupPartyByCodeQueryKey = (params?: LookupPartyByCodeParams,) => {
+    return [
+    `/api/parties/lookup`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getLookupPartyByCodeQueryOptions = <TData = Awaited<ReturnType<typeof lookupPartyByCode>>, TError = ErrorType<ErrorResponse>>(params: LookupPartyByCodeParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof lookupPartyByCode>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLookupPartyByCodeQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof lookupPartyByCode>>> = ({ signal }) => lookupPartyByCode(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof lookupPartyByCode>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type LookupPartyByCodeQueryResult = NonNullable<Awaited<ReturnType<typeof lookupPartyByCode>>>
+export type LookupPartyByCodeQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Find a party by its code
+ */
+
+export function useLookupPartyByCode<TData = Awaited<ReturnType<typeof lookupPartyByCode>>, TError = ErrorType<ErrorResponse>>(
+ params: LookupPartyByCodeParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof lookupPartyByCode>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getLookupPartyByCodeQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getGetPartyUrl = (partyId: number,) => {
 
 
@@ -893,6 +1427,363 @@ export function useGetParty<TData = Awaited<ReturnType<typeof getParty>>, TError
 
 
 
+
+export const getJoinPartyUrl = (partyId: number,) => {
+
+
+
+
+  return `/api/parties/${partyId}/join`
+}
+
+/**
+ * @summary Join a party by id
+ */
+export const joinParty = async (partyId: number, options?: RequestInit): Promise<Party> => {
+
+  return customFetch<Party>(getJoinPartyUrl(partyId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getJoinPartyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinParty>>, TError,{partyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof joinParty>>, TError,{partyId: number}, TContext> => {
+
+const mutationKey = ['joinParty'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof joinParty>>, {partyId: number}> = (props) => {
+          const {partyId} = props ?? {};
+
+          return  joinParty(partyId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type JoinPartyMutationResult = NonNullable<Awaited<ReturnType<typeof joinParty>>>
+
+    export type JoinPartyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Join a party by id
+ */
+export const useJoinParty = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinParty>>, TError,{partyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof joinParty>>,
+        TError,
+        {partyId: number},
+        TContext
+      > => {
+      return useMutation(getJoinPartyMutationOptions(options));
+    }
+
+export const getClosePartyUrl = (partyId: number,) => {
+
+
+
+
+  return `/api/parties/${partyId}/close`
+}
+
+/**
+ * @summary Close a party (creator only)
+ */
+export const closeParty = async (partyId: number, options?: RequestInit): Promise<Party> => {
+
+  return customFetch<Party>(getClosePartyUrl(partyId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getClosePartyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeParty>>, TError,{partyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeParty>>, TError,{partyId: number}, TContext> => {
+
+const mutationKey = ['closeParty'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeParty>>, {partyId: number}> = (props) => {
+          const {partyId} = props ?? {};
+
+          return  closeParty(partyId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClosePartyMutationResult = NonNullable<Awaited<ReturnType<typeof closeParty>>>
+
+    export type ClosePartyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Close a party (creator only)
+ */
+export const useCloseParty = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeParty>>, TError,{partyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof closeParty>>,
+        TError,
+        {partyId: number},
+        TContext
+      > => {
+      return useMutation(getClosePartyMutationOptions(options));
+    }
+
+export const getListMyInvitationsUrl = () => {
+
+
+
+
+  return `/api/invitations`
+}
+
+/**
+ * @summary List my pending party invitations
+ */
+export const listMyInvitations = async ( options?: RequestInit): Promise<Invitation[]> => {
+
+  return customFetch<Invitation[]>(getListMyInvitationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyInvitationsQueryKey = () => {
+    return [
+    `/api/invitations`
+    ] as const;
+    }
+
+
+export const getListMyInvitationsQueryOptions = <TData = Awaited<ReturnType<typeof listMyInvitations>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyInvitationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyInvitations>>> = ({ signal }) => listMyInvitations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyInvitationsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyInvitations>>>
+export type ListMyInvitationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List my pending party invitations
+ */
+
+export function useListMyInvitations<TData = Awaited<ReturnType<typeof listMyInvitations>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyInvitations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyInvitationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAcceptInvitationUrl = (invitationId: number,) => {
+
+
+
+
+  return `/api/invitations/${invitationId}/accept`
+}
+
+/**
+ * @summary Accept a party invitation
+ */
+export const acceptInvitation = async (invitationId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getAcceptInvitationUrl(invitationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAcceptInvitationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptInvitation>>, TError,{invitationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptInvitation>>, TError,{invitationId: number}, TContext> => {
+
+const mutationKey = ['acceptInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptInvitation>>, {invitationId: number}> = (props) => {
+          const {invitationId} = props ?? {};
+
+          return  acceptInvitation(invitationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof acceptInvitation>>>
+
+    export type AcceptInvitationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Accept a party invitation
+ */
+export const useAcceptInvitation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptInvitation>>, TError,{invitationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptInvitation>>,
+        TError,
+        {invitationId: number},
+        TContext
+      > => {
+      return useMutation(getAcceptInvitationMutationOptions(options));
+    }
+
+export const getRejectInvitationUrl = (invitationId: number,) => {
+
+
+
+
+  return `/api/invitations/${invitationId}/reject`
+}
+
+/**
+ * @summary Reject a party invitation
+ */
+export const rejectInvitation = async (invitationId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getRejectInvitationUrl(invitationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRejectInvitationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectInvitation>>, TError,{invitationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectInvitation>>, TError,{invitationId: number}, TContext> => {
+
+const mutationKey = ['rejectInvitation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectInvitation>>, {invitationId: number}> = (props) => {
+          const {invitationId} = props ?? {};
+
+          return  rejectInvitation(invitationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectInvitationMutationResult = NonNullable<Awaited<ReturnType<typeof rejectInvitation>>>
+
+    export type RejectInvitationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Reject a party invitation
+ */
+export const useRejectInvitation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectInvitation>>, TError,{invitationId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectInvitation>>,
+        TError,
+        {invitationId: number},
+        TContext
+      > => {
+      return useMutation(getRejectInvitationMutationOptions(options));
+    }
 
 export const getListMatchesUrl = (params?: ListMatchesParams,) => {
   const normalizedParams = new URLSearchParams();

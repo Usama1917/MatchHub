@@ -97,48 +97,14 @@ export interface UserProfile {
   role: UserProfileRole;
   createdAt: string;
   stats: UserStats;
+  followerCount?: number;
+  followingCount?: number;
+  isFollowing?: boolean;
 }
-
-export type PartyInputGame = typeof PartyInputGame[keyof typeof PartyInputGame];
-
-
-export const PartyInputGame = {
-  fifa: 'fifa',
-  pes: 'pes',
-} as const;
-
-export type PartyInputMatchFormat = typeof PartyInputMatchFormat[keyof typeof PartyInputMatchFormat];
-
-
-export const PartyInputMatchFormat = {
-  '1v1': '1v1',
-  '2v2': '2v2',
-  '3v3': '3v3',
-} as const;
 
 export interface PartyInput {
-  /** @minItems 2 */
-  memberIds: number[];
-  game: PartyInputGame;
-  matchFormat: PartyInputMatchFormat;
+  memberIds?: number[];
 }
-
-export type PartyGame = typeof PartyGame[keyof typeof PartyGame];
-
-
-export const PartyGame = {
-  fifa: 'fifa',
-  pes: 'pes',
-} as const;
-
-export type PartyMatchFormat = typeof PartyMatchFormat[keyof typeof PartyMatchFormat];
-
-
-export const PartyMatchFormat = {
-  '1v1': '1v1',
-  '2v2': '2v2',
-  '3v3': '3v3',
-} as const;
 
 export type PartyStatus = typeof PartyStatus[keyof typeof PartyStatus];
 
@@ -152,16 +118,53 @@ export const PartyStatus = {
 export interface Party {
   id: number;
   createdBy: number;
-  game: PartyGame;
-  matchFormat: PartyMatchFormat;
+  code: string;
   status: PartyStatus;
   createdAt: string;
   members: User[];
   creator?: User;
+  pendingInvites?: User[];
 }
+
+export type InvitationStatus = typeof InvitationStatus[keyof typeof InvitationStatus];
+
+
+export const InvitationStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
+export interface Invitation {
+  id: number;
+  partyId: number;
+  partyCode: string;
+  status: InvitationStatus;
+  createdAt: string;
+  fromUser: User;
+}
+
+export type MatchInputGame = typeof MatchInputGame[keyof typeof MatchInputGame];
+
+
+export const MatchInputGame = {
+  fifa: 'fifa',
+  pes: 'pes',
+} as const;
+
+export type MatchInputMatchFormat = typeof MatchInputMatchFormat[keyof typeof MatchInputMatchFormat];
+
+
+export const MatchInputMatchFormat = {
+  '1v1': '1v1',
+  '2v2': '2v2',
+  '3v3': '3v3',
+} as const;
 
 export interface MatchInput {
   partyId: number;
+  game: MatchInputGame;
+  matchFormat: MatchInputMatchFormat;
   teamA: number[];
   teamB: number[];
 }
@@ -346,11 +349,16 @@ export const GetUserMatchesMatchFormat = {
   '3v3': '3v3',
 } as const;
 
+export type LookupPartyByCodeParams = {
+code: string;
+};
+
 export type ListMatchesParams = {
 game?: ListMatchesGame;
 matchFormat?: ListMatchesMatchFormat;
 userId?: number;
 winType?: ListMatchesWinType;
+partyId?: number;
 };
 
 export type ListMatchesGame = typeof ListMatchesGame[keyof typeof ListMatchesGame];

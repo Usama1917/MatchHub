@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
-import { db, usersTable, matchPlayersTable, matchesTable } from "@workspace/db";
-import { eq, ilike, and } from "drizzle-orm";
+import { db, usersTable, matchPlayersTable, matchesTable, followsTable } from "@workspace/db";
+import { eq, ilike, and, inArray, count } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { parseIdParam } from "../lib/http";
 import { deriveMatchPlayerStats } from "./matchHelpers";
@@ -27,6 +27,44 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
         .where(ilike(usersTable.username, `%${search}%`))
         .limit(20)
     : await db.select().from(usersTable).limit(100);
+
+  res.json(users.map(safeUser));
+});
+
+// Mutual follows ("friends"): users the current user follows who also follow back.
+// Declared before /:userId so "friends" isn't parsed as a user id.
+router.get("/friends", requireAuth, async (req: Request, res: Response) => {
+  const me = req.session.userId!;
+
+  const following = await db
+    .select({ id: followsTable.followingId })
+    .from(followsTable)
+    .where(eq(followsTable.followerId, me));
+  const followingIds = following.map((f) => f.id);
+  if (followingIds.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const back = await db
+    .select({ id: followsTable.followerId })
+    .from(followsTable)
+    .where(
+      and(
+        eq(followsTable.followingId, me),
+        inArray(followsTable.followerId, followingIds),
+      ),
+    );
+  const mutualIds = back.map((b) => b.id);
+  if (mutualIds.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const users = await db
+    .select()
+    .from(usersTable)
+    .where(inArray(usersTable.id, mutualIds));
 
   res.json(users.map(safeUser));
 });
@@ -115,12 +153,41 @@ router.get("/:userId", requireAuth, async (req: Request, res: Response) => {
     winRate: g.matches > 0 ? Math.round((g.wins / g.matches) * 100) : 0,
   });
 
+  // Follow metadata
+  const [followerRow] = await db
+    .select({ count: count() })
+    .from(followsTable)
+    .where(eq(followsTable.followingId, userId));
+  const [followingRow] = await db
+    .select({ count: count() })
+    .from(followsTable)
+    .where(eq(followsTable.followerId, userId));
+
+  const me = req.session.userId;
+  let isFollowing = false;
+  if (me && me !== userId) {
+    const [f] = await db
+      .select()
+      .from(followsTable)
+      .where(
+        and(
+          eq(followsTable.followerId, me),
+          eq(followsTable.followingId, userId),
+        ),
+      )
+      .limit(1);
+    isFollowing = !!f;
+  }
+
   res.json({
     id: user.id,
     username: user.username,
     displayName: user.displayName,
     role: user.role,
     createdAt: user.createdAt,
+    followerCount: followerRow.count,
+    followingCount: followingRow.count,
+    isFollowing,
     stats: {
       totalMatches,
       totalWins,
@@ -161,6 +228,89 @@ router.get("/:userId/matches", requireAuth, async (req: Request, res: Response) 
   const { buildMatchesWithPlayers } = await import("./matchHelpers");
   const matches = await buildMatchesWithPlayers({ matchIds, game, matchFormat });
   res.json(matches);
+});
+
+router.post("/:userId/follow", requireAuth, async (req: Request, res: Response) => {
+  const targetId = parseIdParam(req.params.userId);
+  if (!targetId) {
+    res.status(400).json({ error: "Invalid user ID" });
+    return;
+  }
+
+  const me = req.session.userId!;
+  if (targetId === me) {
+    res.status(400).json({ error: "You cannot follow yourself" });
+    return;
+  }
+
+  const [target] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, targetId))
+    .limit(1);
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  await db
+    .insert(followsTable)
+    .values({ followerId: me, followingId: targetId })
+    .onConflictDoNothing();
+
+  res.json({ success: true, message: "Followed" });
+});
+
+router.delete("/:userId/follow", requireAuth, async (req: Request, res: Response) => {
+  const targetId = parseIdParam(req.params.userId);
+  if (!targetId) {
+    res.status(400).json({ error: "Invalid user ID" });
+    return;
+  }
+
+  const me = req.session.userId!;
+  await db
+    .delete(followsTable)
+    .where(
+      and(
+        eq(followsTable.followerId, me),
+        eq(followsTable.followingId, targetId),
+      ),
+    );
+
+  res.json({ success: true, message: "Unfollowed" });
+});
+
+router.get("/:userId/followers", requireAuth, async (req: Request, res: Response) => {
+  const userId = parseIdParam(req.params.userId);
+  if (!userId) {
+    res.status(400).json({ error: "Invalid user ID" });
+    return;
+  }
+
+  const rows = await db
+    .select({ user: usersTable })
+    .from(followsTable)
+    .innerJoin(usersTable, eq(followsTable.followerId, usersTable.id))
+    .where(eq(followsTable.followingId, userId));
+
+  res.json(rows.map((r) => safeUser(r.user)));
+});
+
+router.get("/:userId/following", requireAuth, async (req: Request, res: Response) => {
+  const userId = parseIdParam(req.params.userId);
+  if (!userId) {
+    res.status(400).json({ error: "Invalid user ID" });
+    return;
+  }
+
+  const rows = await db
+    .select({ user: usersTable })
+    .from(followsTable)
+    .innerJoin(usersTable, eq(followsTable.followingId, usersTable.id))
+    .where(eq(followsTable.followerId, userId));
+
+  res.json(rows.map((r) => safeUser(r.user)));
 });
 
 export default router;

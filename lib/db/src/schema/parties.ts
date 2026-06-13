@@ -1,6 +1,7 @@
 import {
   pgTable,
   serial,
+  text,
   timestamp,
   pgEnum,
   integer,
@@ -10,6 +11,8 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 
+// Game and match format live on matches now; the enums stay here because
+// matches.ts imports them. A party is just a "room" identified by its code.
 export const gameEnum = pgEnum("game", ["fifa", "pes"]);
 export const matchFormatEnum = pgEnum("match_format", ["1v1", "2v2", "3v3"]);
 export const partyStatusEnum = pgEnum("party_status", ["pending", "in_progress", "completed"]);
@@ -19,8 +22,7 @@ export const partiesTable = pgTable("parties", {
   createdBy: integer("created_by")
     .notNull()
     .references(() => usersTable.id, { onDelete: "restrict" }),
-  game: gameEnum("game").notNull(),
-  matchFormat: matchFormatEnum("match_format").notNull(),
+  code: text("code").notNull().unique(),
   status: partyStatusEnum("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -50,7 +50,7 @@ export function Header() {
             <Link href="/rankings" className="transition-colors hover:text-foreground/80 text-foreground/60">{t('rankings')}</Link>
             {isAdmin && <Link href="/admin" className="transition-colors hover:text-foreground/80 text-foreground/60">{t('admin')}</Link>}
           </nav>
-          <div className="flex items-center space-x-2 rtl:space-x-reverse ml-auto">
+          <div className="flex items-center space-x-2 rtl:space-x-reverse ml-auto rtl:ml-0 rtl:mr-auto">
             <Button variant="ghost" size="icon" onClick={toggleLanguage} className="h-8 w-8 px-0">
               <span className="font-bold">{language === 'en' ? 'ع' : 'EN'}</span>
               <span className="sr-only">Toggle language</span>
