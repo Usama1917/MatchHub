@@ -3,6 +3,7 @@ node_modules
 .env.*
 !.env.example
 dist
+public
 build
 .next
 .cache
