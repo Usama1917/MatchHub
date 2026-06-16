@@ -94,6 +94,8 @@ export const translations: Translations = {
   closeParty: { en: 'Close Party', ar: 'إغلاق البارتي' },
   partyClosed: { en: 'Party closed', ar: 'تم إغلاق البارتي' },
   pendingInvites: { en: 'Pending', ar: 'في انتظار القبول' },
+  myActiveParty: { en: 'Party you are in', ar: 'البارتي اللي أنت فيها' },
+  noActiveParty: { en: 'You are not in an active party right now.', ar: 'أنت مش موجود في بارتي شغالة دلوقتي.' },
 
   // Invitations (floating)
   invitedYou: { en: 'invited you to a party', ar: 'دعاك لبارتي' },

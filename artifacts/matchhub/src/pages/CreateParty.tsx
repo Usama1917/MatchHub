@@ -4,6 +4,7 @@ import {
   useListUsers,
   useListFriends,
   useCreateParty,
+  useGetMyActiveParty,
   useLookupPartyByCode,
   useJoinParty,
   User,
@@ -20,6 +21,7 @@ import { Search, Check, X, Users, Copy, Share2, ChevronRight } from 'lucide-reac
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
+import { useQueryClient } from '@tanstack/react-query';
 
 type Mode = 'players' | 'party';
 
@@ -28,6 +30,7 @@ export default function CreateParty() {
   const { user: currentUser } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [step, setStep] = useState<1 | 2>(1);
   const [mode, setMode] = useState<Mode>('players');
@@ -50,6 +53,9 @@ export default function CreateParty() {
     { code: trimmedCode },
     { query: { enabled: mode === 'party' && trimmedCode.length > 0, retry: false, queryKey: ['partyLookup', trimmedCode] } },
   );
+  const { data: activeParty, isLoading: loadingActiveParty } = useGetMyActiveParty({
+    query: { queryKey: ['activeParty'] },
+  });
 
   const createMut = useCreateParty();
   const joinMut = useJoinParty();
@@ -72,6 +78,7 @@ export default function CreateParty() {
         data: { memberIds: selectedUsers.map((u) => u.id) },
       });
       setCreatedParty(party);
+      queryClient.setQueryData(['activeParty'], party);
       setStep(2);
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed to create party' });
@@ -81,7 +88,8 @@ export default function CreateParty() {
   const handleJoin = async () => {
     if (!foundParty) return;
     try {
-      await joinMut.mutateAsync({ partyId: foundParty.id });
+      const party = await joinMut.mutateAsync({ partyId: foundParty.id });
+      queryClient.setQueryData(['activeParty'], party);
       toast({ title: t('joined') });
       setLocation(`/parties/${foundParty.id}`);
     } catch (e: any) {
@@ -300,6 +308,89 @@ export default function CreateParty() {
             </div>
           )}
         </div>
+      )}
+
+      <ActivePartyPanel
+        activeParty={activeParty}
+        isLoading={loadingActiveParty}
+        onOpen={(partyId) => setLocation(`/parties/${partyId}`)}
+      />
+    </div>
+  );
+}
+
+function ActivePartyPanel({
+  activeParty,
+  isLoading,
+  onOpen,
+}: {
+  activeParty?: Party | null;
+  isLoading: boolean;
+  onOpen: (partyId: number) => void;
+}) {
+  const { t } = useLanguage();
+
+  return (
+    <div className="space-y-3 pt-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">{t('myActiveParty')}</h2>
+        {activeParty && (
+          <Badge variant="secondary" className="text-xs">
+            {t(`party_${activeParty.status}`)}
+          </Badge>
+        )}
+      </div>
+
+      {isLoading ? (
+        <Card className="bg-card/50 border-border/50">
+          <CardContent className="flex items-center justify-center p-6">
+            <Spinner />
+          </CardContent>
+        </Card>
+      ) : activeParty ? (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => onOpen(activeParty.id)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              onOpen(activeParty.id);
+            }
+          }}
+          className="w-full cursor-pointer text-left outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rtl:text-right"
+        >
+          <Card className="bg-card/50 border-primary/20 transition-colors hover:border-primary/50 hover:bg-card">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                      {t('partyCode')}
+                    </span>
+                    <span className="font-mono text-lg font-bold tracking-[0.2em] text-primary">
+                      {activeParty.code}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Users className="h-4 w-4" />
+                      {activeParty.members.length} {t('members')}
+                    </span>
+                    {activeParty.creator && <span>{activeParty.creator.displayName}</span>}
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground rtl:rotate-180" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <Card className="bg-card/40 border-dashed border-border/70">
+          <CardContent className="p-5 text-center text-sm text-muted-foreground">
+            {t('noActiveParty')}
+          </CardContent>
+        </Card>
       )}
     </div>
   );
