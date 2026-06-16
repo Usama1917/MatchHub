@@ -1,0 +1,36 @@
+import {
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  integer,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
+
+export const rankGroupsTable = pgTable("rank_groups", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  createdBy: integer("created_by")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const rankGroupMembersTable = pgTable("rank_group_members", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id")
+    .notNull()
+    .references(() => rankGroupsTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+}, (table) => ({
+  groupUserUnique: uniqueIndex("rank_group_members_unique").on(
+    table.groupId,
+    table.userId,
+  ),
+}));
+
+export type RankGroup = typeof rankGroupsTable.$inferSelect;
+export type RankGroupMember = typeof rankGroupMembersTable.$inferSelect;

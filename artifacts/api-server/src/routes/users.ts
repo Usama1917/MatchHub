@@ -1,9 +1,18 @@
 import { Router, Request, Response } from "express";
-import { db, usersTable, matchPlayersTable, matchesTable, followsTable } from "@workspace/db";
+import {
+  db,
+  usersTable,
+  matchPlayersTable,
+  matchesTable,
+  followsTable,
+  rankGroupsTable,
+  rankGroupMembersTable,
+} from "@workspace/db";
 import { eq, ilike, and, inArray, count } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { parseIdParam } from "../lib/http";
 import { deriveMatchPlayerStats } from "./matchHelpers";
+import { computeGroupRankings, getGroupMemberIds } from "./groups";
 
 const router = Router();
 
@@ -311,6 +320,35 @@ router.get("/:userId/following", requireAuth, async (req: Request, res: Response
     .where(eq(followsTable.followerId, userId));
 
   res.json(rows.map((r) => safeUser(r.user)));
+});
+
+router.get("/:userId/groups", requireAuth, async (req: Request, res: Response) => {
+  const userId = parseIdParam(req.params.userId);
+  if (!userId) {
+    res.status(400).json({ error: "Invalid user ID" });
+    return;
+  }
+
+  const groups = await db
+    .select({ group: rankGroupsTable })
+    .from(rankGroupMembersTable)
+    .innerJoin(rankGroupsTable, eq(rankGroupMembersTable.groupId, rankGroupsTable.id))
+    .where(eq(rankGroupMembersTable.userId, userId));
+
+  const result = [];
+  for (const { group } of groups) {
+    const memberIds = await getGroupMemberIds(group.id);
+    const ranking = await computeGroupRankings(memberIds);
+    const idx = ranking.findIndex((e) => e.userId === userId);
+    result.push({
+      id: group.id,
+      name: group.name,
+      memberCount: memberIds.length,
+      position: idx >= 0 ? idx + 1 : 0, // 0 = unranked (no qualifying matches yet)
+    });
+  }
+
+  res.json(result);
 });
 
 export default router;

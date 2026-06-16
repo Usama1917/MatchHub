@@ -269,6 +269,124 @@ export const ListFollowingResponse = zod.array(ListFollowingResponseItem)
 
 
 /**
+ * @summary List the private ranks a user belongs to with their position
+ */
+export const ListUserGroupsParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const ListUserGroupsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "memberCount": zod.number(),
+  "position": zod.number()
+})
+export const ListUserGroupsResponse = zod.array(ListUserGroupsResponseItem)
+
+
+/**
+ * @summary List private ranks the current user belongs to
+ */
+export const ListMyGroupsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "createdBy": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+}))
+})
+export const ListMyGroupsResponse = zod.array(ListMyGroupsResponseItem)
+
+
+/**
+ * @summary Create a private rank
+ */
+export const CreateGroupBody = zod.object({
+  "name": zod.string(),
+  "memberIds": zod.array(zod.number())
+})
+
+
+/**
+ * @summary Get a private rank
+ */
+export const GetGroupParams = zod.object({
+  "groupId": zod.coerce.number()
+})
+
+export const GetGroupResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "createdBy": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Get FIFA and PES rankings for a private rank
+ */
+export const GetGroupRankingsParams = zod.object({
+  "groupId": zod.coerce.number()
+})
+
+export const GetGroupRankingsResponse = zod.object({
+  "fifa": zod.array(zod.object({
+  "rank": zod.number(),
+  "userId": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "points": zod.number(),
+  "matches": zod.number(),
+  "wins": zod.number(),
+  "losses": zod.number(),
+  "goalsFor": zod.number(),
+  "goalsAgainst": zod.number(),
+  "goalDifference": zod.number(),
+  "winRate": zod.number()
+})),
+  "pes": zod.array(zod.object({
+  "rank": zod.number(),
+  "userId": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "points": zod.number(),
+  "matches": zod.number(),
+  "wins": zod.number(),
+  "losses": zod.number(),
+  "goalsFor": zod.number(),
+  "goalsAgainst": zod.number(),
+  "goalDifference": zod.number(),
+  "winRate": zod.number()
+}))
+})
+
+
+/**
+ * @summary Leave a private rank
+ */
+export const LeaveGroupParams = zod.object({
+  "groupId": zod.coerce.number()
+})
+
+export const LeaveGroupResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
  * @summary List parties
  */
 export const ListPartiesResponseItem = zod.object({

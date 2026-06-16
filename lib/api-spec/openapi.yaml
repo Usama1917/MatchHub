@@ -15,6 +15,7 @@ tags:
   - name: rankings
   - name: admin
   - name: invitations
+  - name: groups
 
 paths:
   /healthz:
@@ -288,6 +289,135 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/User"
+
+  /users/{userId}/groups:
+    get:
+      operationId: listUserGroups
+      tags: [users]
+      summary: List the private ranks a user belongs to with their position
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User group positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserGroupPosition"
+
+  # Groups (private ranks)
+  /groups:
+    get:
+      operationId: listMyGroups
+      tags: [groups]
+      summary: List private ranks the current user belongs to
+      responses:
+        "200":
+          description: Groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Group"
+    post:
+      operationId: createGroup
+      tags: [groups]
+      summary: Create a private rank
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /groups/{groupId}:
+    get:
+      operationId: getGroup
+      tags: [groups]
+      summary: Get a private rank
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "403":
+          description: Not a member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /groups/{groupId}/rankings:
+    get:
+      operationId: getGroupRankings
+      tags: [groups]
+      summary: Get FIFA and PES rankings for a private rank
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Group rankings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupRankings"
+        "403":
+          description: Not a member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /groups/{groupId}/leave:
+    post:
+      operationId: leaveGroup
+      tags: [groups]
+      summary: Leave a private rank
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Left
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
 
   # Parties
   /parties:
@@ -1096,6 +1226,61 @@ components:
           type: integer
         winRate:
           type: number
+
+    GroupInput:
+      type: object
+      required: [name, memberIds]
+      properties:
+        name:
+          type: string
+        memberIds:
+          type: array
+          items:
+            type: integer
+
+    Group:
+      type: object
+      required: [id, name, createdBy, createdAt, members]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        createdBy:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+
+    GroupRankings:
+      type: object
+      required: [fifa, pes]
+      properties:
+        fifa:
+          type: array
+          items:
+            $ref: "#/components/schemas/RankingEntry"
+        pes:
+          type: array
+          items:
+            $ref: "#/components/schemas/RankingEntry"
+
+    UserGroupPosition:
+      type: object
+      required: [id, name, memberCount, position]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        memberCount:
+          type: integer
+        position:
+          type: integer
 
     DashboardStats:
       type: object

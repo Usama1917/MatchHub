@@ -104,6 +104,17 @@ export const translations: Translations = {
   createPartyAction: { en: 'Create Party', ar: 'إنشاء البارتي' },
   noFriendsYet: { en: 'No mutual follows yet. Use search to find players.', ar: 'لسه مفيش متابعة متبادلة. استخدم البحث للقاء لاعبين.' },
 
+  // Private ranks (groups)
+  privateRank: { en: 'Private Rank', ar: 'رانك خاص' },
+  privateRanks: { en: 'Private Ranks', ar: 'الرانكات الخاصة' },
+  createPrivateRank: { en: 'Create Private Rank', ar: 'إنشاء رانك خاص' },
+  groupName: { en: 'Rank name', ar: 'اسم الرانك' },
+  create: { en: 'Create', ar: 'إنشاء' },
+  leave: { en: 'Leave', ar: 'خروج' },
+  leftGroup: { en: 'Left the private rank', ar: 'خرجت من الرانك الخاص' },
+  noGroups: { en: 'No private ranks yet. Create one!', ar: 'لسه مفيش رانكات خاصة. اعمل واحد!' },
+  notRanked: { en: 'Unranked', ar: 'غير مصنّف' },
+
   // Follow
   follow: { en: 'Follow', ar: 'متابعة' },
   unfollow: { en: 'Unfollow', ar: 'إلغاء المتابعة' },

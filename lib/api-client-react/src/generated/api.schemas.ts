@@ -297,6 +297,31 @@ export interface RankingEntry {
   winRate: number;
 }
 
+export interface GroupInput {
+  name: string;
+  memberIds: number[];
+}
+
+export interface Group {
+  id: number;
+  name: string;
+  createdBy: number;
+  createdAt: string;
+  members: User[];
+}
+
+export interface GroupRankings {
+  fifa: RankingEntry[];
+  pes: RankingEntry[];
+}
+
+export interface UserGroupPosition {
+  id: number;
+  name: string;
+  memberCount: number;
+  position: number;
+}
+
 export interface DashboardStats {
   totalMatches: number;
   totalUsers: number;

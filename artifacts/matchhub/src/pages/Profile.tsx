@@ -7,6 +7,7 @@ import {
   useUnfollowUser,
   useListFollowers,
   useListFollowing,
+  useListUserGroups,
   getGetUserQueryKey,
 } from '@workspace/api-client-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -61,6 +62,9 @@ export default function Profile() {
   const { data: followingList } = useListFollowing(idToLoad as number, {
     query: { enabled: !!idToLoad && followDialog === 'following', queryKey: ['following', idToLoad] },
   });
+  const { data: userGroups } = useListUserGroups(idToLoad as number, {
+    query: { enabled: !!idToLoad, queryKey: ['userGroups', idToLoad] },
+  });
 
   if (loadingProfile || !userProfile) {
     return <div className="flex h-screen items-center justify-center"><Spinner size="lg" /></div>;
@@ -83,6 +87,8 @@ export default function Profile() {
   };
 
   const dialogList = followDialog === 'followers' ? followersList : followingList;
+
+  const medal = (pos: number) => (pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : '🏅');
 
   const StatBox = ({ title, value, icon: Icon, colorClass }: any) => (
     <Card className="bg-card/40 border-border/50">
@@ -157,6 +163,29 @@ export default function Profile() {
         <StatBox title="Losses" value={userProfile.stats.totalLosses} icon={Trophy} colorClass="text-red-500" />
         <StatBox title="Goal Diff" value={(userProfile.stats.goalDifference || 0) > 0 ? `+${userProfile.stats.goalDifference}` : userProfile.stats.goalDifference} icon={Target} colorClass="text-amber-500" />
       </div>
+
+      {userGroups && userGroups.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold tracking-tight">{t('privateRanks')}</h2>
+          <div className="flex flex-wrap gap-3">
+            {userGroups.map((g) => (
+              <Link key={g.id} href="/rankings">
+                <Card className="hover:border-primary/40 transition-colors cursor-pointer">
+                  <CardContent className="p-3 flex items-center gap-3">
+                    <span className="text-2xl">{medal(g.position)}</span>
+                    <div>
+                      <div className="font-medium text-sm">{g.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {g.position > 0 ? `#${g.position}` : t('notRanked')} · {g.memberCount} {t('members')}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Tabs defaultValue="fifa" className="w-full">
         <TabsList className="w-full grid grid-cols-2">
