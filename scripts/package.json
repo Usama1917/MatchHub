@@ -7,7 +7,7 @@
     "db:migrate": "tsx ./src/migrate.ts",
     "db:seed": "tsx ./src/seed.ts",
     "smoke:vercel-api": "tsx ./src/smoke-vercel-api.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc --build --force ../lib/db && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",
