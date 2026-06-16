@@ -30,6 +30,7 @@ import type {
   GroupRankings,
   HealthStatus,
   Invitation,
+  JoinGroupInput,
   ListMatchesParams,
   ListUsersParams,
   LoginInput,
@@ -1271,6 +1272,77 @@ export const useCreateGroup = <TError = ErrorType<ErrorResponse>,
       return useMutation(getCreateGroupMutationOptions(options));
     }
 
+export const getJoinGroupUrl = () => {
+
+
+
+
+  return `/api/groups/join`
+}
+
+/**
+ * @summary Join a private rank by code
+ */
+export const joinGroup = async (joinGroupInput: JoinGroupInput, options?: RequestInit): Promise<Group> => {
+
+  return customFetch<Group>(getJoinGroupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      joinGroupInput,)
+  }
+);}
+
+
+
+
+export const getJoinGroupMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinGroup>>, TError,{data: BodyType<JoinGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof joinGroup>>, TError,{data: BodyType<JoinGroupInput>}, TContext> => {
+
+const mutationKey = ['joinGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof joinGroup>>, {data: BodyType<JoinGroupInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  joinGroup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type JoinGroupMutationResult = NonNullable<Awaited<ReturnType<typeof joinGroup>>>
+    export type JoinGroupMutationBody = BodyType<JoinGroupInput>
+    export type JoinGroupMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Join a private rank by code
+ */
+export const useJoinGroup = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinGroup>>, TError,{data: BodyType<JoinGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof joinGroup>>,
+        TError,
+        {data: BodyType<JoinGroupInput>},
+        TContext
+      > => {
+      return useMutation(getJoinGroupMutationOptions(options));
+    }
+
 export const getGetGroupUrl = (groupId: number,) => {
 
 
@@ -1493,6 +1565,76 @@ export const useLeaveGroup = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getLeaveGroupMutationOptions(options));
+    }
+
+export const getEndGroupUrl = (groupId: number,) => {
+
+
+
+
+  return `/api/groups/${groupId}/end`
+}
+
+/**
+ * @summary End a private rank (creator only)
+ */
+export const endGroup = async (groupId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getEndGroupUrl(groupId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getEndGroupMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endGroup>>, TError,{groupId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof endGroup>>, TError,{groupId: number}, TContext> => {
+
+const mutationKey = ['endGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof endGroup>>, {groupId: number}> = (props) => {
+          const {groupId} = props ?? {};
+
+          return  endGroup(groupId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EndGroupMutationResult = NonNullable<Awaited<ReturnType<typeof endGroup>>>
+
+    export type EndGroupMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary End a private rank (creator only)
+ */
+export const useEndGroup = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endGroup>>, TError,{groupId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof endGroup>>,
+        TError,
+        {groupId: number},
+        TContext
+      > => {
+      return useMutation(getEndGroupMutationOptions(options));
     }
 
 export const getListPartiesUrl = () => {

@@ -291,7 +291,10 @@ export const ListMyGroupsResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "createdBy": zod.number(),
+  "code": zod.string().optional().describe('Present only for the private rank creator'),
+  "status": zod.enum(['active', 'ended']),
   "createdAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullish(),
   "members": zod.array(zod.object({
   "id": zod.number(),
   "username": zod.string(),
@@ -313,6 +316,31 @@ export const CreateGroupBody = zod.object({
 
 
 /**
+ * @summary Join a private rank by code
+ */
+export const JoinGroupBody = zod.object({
+  "code": zod.string()
+})
+
+export const JoinGroupResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "createdBy": zod.number(),
+  "code": zod.string().optional().describe('Present only for the private rank creator'),
+  "status": zod.enum(['active', 'ended']),
+  "createdAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullish(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary Get a private rank
  */
 export const GetGroupParams = zod.object({
@@ -323,7 +351,10 @@ export const GetGroupResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "createdBy": zod.number(),
+  "code": zod.string().optional().describe('Present only for the private rank creator'),
+  "status": zod.enum(['active', 'ended']),
   "createdAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().nullish(),
   "members": zod.array(zod.object({
   "id": zod.number(),
   "username": zod.string(),
@@ -381,6 +412,19 @@ export const LeaveGroupParams = zod.object({
 })
 
 export const LeaveGroupResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary End a private rank (creator only)
+ */
+export const EndGroupParams = zod.object({
+  "groupId": zod.coerce.number()
+})
+
+export const EndGroupResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.string().optional()
 })

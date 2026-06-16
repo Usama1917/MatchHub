@@ -302,11 +302,28 @@ export interface GroupInput {
   memberIds: number[];
 }
 
+export interface JoinGroupInput {
+  code: string;
+}
+
+export type GroupStatus = typeof GroupStatus[keyof typeof GroupStatus];
+
+
+export const GroupStatus = {
+  active: 'active',
+  ended: 'ended',
+} as const;
+
 export interface Group {
   id: number;
   name: string;
   createdBy: number;
+  /** Present only for the private rank creator */
+  code?: string;
+  status: GroupStatus;
   createdAt: string;
+  /** @nullable */
+  endedAt?: string | null;
   members: User[];
 }
 

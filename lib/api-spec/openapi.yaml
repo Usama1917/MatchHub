@@ -350,6 +350,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /groups/join:
+    post:
+      operationId: joinGroup
+      tags: [groups]
+      summary: Join a private rank by code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinGroupInput"
+      responses:
+        "200":
+          description: Joined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Private rank not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /groups/{groupId}:
     get:
       operationId: getGroup
@@ -418,6 +449,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
+
+  /groups/{groupId}/end:
+    post:
+      operationId: endGroup
+      tags: [groups]
+      summary: End a private rank (creator only)
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Ended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Creator only
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   # Parties
   /parties:
@@ -1238,9 +1294,16 @@ components:
           items:
             type: integer
 
+    JoinGroupInput:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+
     Group:
       type: object
-      required: [id, name, createdBy, createdAt, members]
+      required: [id, name, createdBy, status, createdAt, members]
       properties:
         id:
           type: integer
@@ -1248,8 +1311,17 @@ components:
           type: string
         createdBy:
           type: integer
+        code:
+          type: string
+          description: Present only for the private rank creator
+        status:
+          type: string
+          enum: [active, ended]
         createdAt:
           type: string
+          format: date-time
+        endedAt:
+          type: ["string", "null"]
           format: date-time
         members:
           type: array

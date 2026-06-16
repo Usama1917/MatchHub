@@ -11,6 +11,7 @@ import { eq, and, inArray, desc, count } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { parseIdParam } from "../lib/http";
 import { deriveMatchPlayerStats } from "./matchHelpers";
+import { generatePartyCode } from "../lib/partyCode";
 
 const router = Router();
 
@@ -46,20 +47,45 @@ async function isMember(groupId: number, userId: number): Promise<boolean> {
   return !!row;
 }
 
-async function buildGroupResponse(group: any) {
+async function buildGroupResponse(group: any, viewerId?: number) {
   const members = await db
     .select({ user: usersTable })
     .from(rankGroupMembersTable)
     .innerJoin(usersTable, eq(rankGroupMembersTable.userId, usersTable.id))
     .where(eq(rankGroupMembersTable.groupId, group.id));
 
-  return {
+  const response: Record<string, unknown> = {
     id: group.id,
     name: group.name,
     createdBy: group.createdBy,
+    status: group.status,
     createdAt: group.createdAt,
+    endedAt: group.endedAt,
     members: members.map(({ user }) => safeUser(user)),
   };
+
+  if (viewerId === group.createdBy) {
+    response.code = group.code;
+  }
+
+  return response;
+}
+
+async function insertGroupWithUniqueCode(name: string, createdBy: number) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const code = generatePartyCode();
+    try {
+      const [group] = await db
+        .insert(rankGroupsTable)
+        .values({ name, createdBy, code, status: "active" })
+        .returning();
+      return group;
+    } catch (err: any) {
+      if (err?.code === "23505" && attempt < 5) continue;
+      throw err;
+    }
+  }
+  throw new Error("Could not generate a unique private rank code");
 }
 
 // A completed match counts toward a group only when at least 2 of its active
@@ -170,10 +196,17 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     .select({ group: rankGroupsTable })
     .from(rankGroupMembersTable)
     .innerJoin(rankGroupsTable, eq(rankGroupMembersTable.groupId, rankGroupsTable.id))
-    .where(eq(rankGroupMembersTable.userId, userId))
+    .where(
+      and(
+        eq(rankGroupMembersTable.userId, userId),
+        eq(rankGroupsTable.status, "active"),
+      ),
+    )
     .orderBy(desc(rankGroupsTable.createdAt));
 
-  const result = await Promise.all(myGroups.map(({ group }) => buildGroupResponse(group)));
+  const result = await Promise.all(
+    myGroups.map(({ group }) => buildGroupResponse(group, userId)),
+  );
   res.json(result);
 });
 
@@ -200,16 +233,46 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
-  const [group] = await db
-    .insert(rankGroupsTable)
-    .values({ name: name.trim(), createdBy })
-    .returning();
+  const group = await insertGroupWithUniqueCode(name.trim(), createdBy);
 
   await db
     .insert(rankGroupMembersTable)
     .values(allMemberIds.map((uid) => ({ groupId: group.id, userId: uid })));
 
-  res.status(201).json(await buildGroupResponse(group));
+  res.status(201).json(await buildGroupResponse(group, createdBy));
+});
+
+router.post("/join", requireAuth, async (req: Request, res: Response) => {
+  const userId = req.session.userId!;
+  const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+
+  if (!code) {
+    res.status(400).json({ error: "Private rank code is required" });
+    return;
+  }
+
+  const [group] = await db
+    .select()
+    .from(rankGroupsTable)
+    .where(
+      and(
+        eq(rankGroupsTable.code, code),
+        eq(rankGroupsTable.status, "active"),
+      ),
+    )
+    .limit(1);
+
+  if (!group) {
+    res.status(404).json({ error: "Private rank not found" });
+    return;
+  }
+
+  await db
+    .insert(rankGroupMembersTable)
+    .values({ groupId: group.id, userId })
+    .onConflictDoNothing();
+
+  res.json(await buildGroupResponse(group, userId));
 });
 
 router.get("/:groupId", requireAuth, async (req: Request, res: Response) => {
@@ -228,14 +291,19 @@ router.get("/:groupId", requireAuth, async (req: Request, res: Response) => {
   const [group] = await db
     .select()
     .from(rankGroupsTable)
-    .where(eq(rankGroupsTable.id, groupId))
+    .where(
+      and(
+        eq(rankGroupsTable.id, groupId),
+        eq(rankGroupsTable.status, "active"),
+      ),
+    )
     .limit(1);
   if (!group) {
     res.status(404).json({ error: "Group not found" });
     return;
   }
 
-  res.json(await buildGroupResponse(group));
+  res.json(await buildGroupResponse(group, userId));
 });
 
 router.get("/:groupId/rankings", requireAuth, async (req: Request, res: Response) => {
@@ -248,6 +316,22 @@ router.get("/:groupId/rankings", requireAuth, async (req: Request, res: Response
   const userId = req.session.userId!;
   if (!(await isMember(groupId, userId))) {
     res.status(403).json({ error: "You are not a member of this private rank" });
+    return;
+  }
+
+  const [group] = await db
+    .select({ id: rankGroupsTable.id })
+    .from(rankGroupsTable)
+    .where(
+      and(
+        eq(rankGroupsTable.id, groupId),
+        eq(rankGroupsTable.status, "active"),
+      ),
+    )
+    .limit(1);
+
+  if (!group) {
+    res.status(404).json({ error: "Group not found" });
     return;
   }
 
@@ -289,6 +373,38 @@ router.post("/:groupId/leave", requireAuth, async (req: Request, res: Response) 
   }
 
   res.json({ success: true, message: "Left the private rank" });
+});
+
+router.post("/:groupId/end", requireAuth, async (req: Request, res: Response) => {
+  const groupId = parseIdParam(req.params.groupId);
+  if (!groupId) {
+    res.status(400).json({ error: "Invalid group ID" });
+    return;
+  }
+
+  const userId = req.session.userId!;
+  const [group] = await db
+    .select()
+    .from(rankGroupsTable)
+    .where(eq(rankGroupsTable.id, groupId))
+    .limit(1);
+
+  if (!group) {
+    res.status(404).json({ error: "Group not found" });
+    return;
+  }
+
+  if (group.createdBy !== userId) {
+    res.status(403).json({ error: "Only the private rank creator can end it" });
+    return;
+  }
+
+  await db
+    .update(rankGroupsTable)
+    .set({ status: "ended", endedAt: new Date() })
+    .where(eq(rankGroupsTable.id, groupId));
+
+  res.json({ success: true, message: "Private rank ended" });
 });
 
 export default router;

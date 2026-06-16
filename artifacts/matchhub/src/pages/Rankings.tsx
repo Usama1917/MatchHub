@@ -4,8 +4,10 @@ import {
   useGetPesRankings,
   useListMyGroups,
   useCreateGroup,
+  useJoinGroup,
   useGetGroupRankings,
   useLeaveGroup,
+  useEndGroup,
   useListFriends,
   useListUsers,
   User,
@@ -23,11 +25,24 @@ import { Spinner } from '@/components/ui/spinner';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Trophy, Plus, Search, Check, X, LogOut, Users } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Trophy, Plus, Search, Check, X, LogOut, Users, Info, Copy, KeyRound, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -75,19 +90,23 @@ export default function Rankings() {
 
 function PrivateRanks() {
   const { t } = useLanguage();
+  const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: groups, isLoading } = useListMyGroups({ query: { queryKey: ['myGroups'] } });
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
   const leaveMut = useLeaveGroup();
+  const endMut = useEndGroup();
 
   const activeId = selectedId ?? groups?.[0]?.id ?? null;
   const { data: rankings, isLoading: loadingRankings } = useGetGroupRankings(activeId as number, {
     query: { enabled: !!activeId, queryKey: ['groupRankings', activeId] },
   });
   const activeGroup = groups?.find((g) => g.id === activeId);
+  const isCreator = activeGroup?.createdBy === currentUser?.id;
 
   const handleLeave = async (id: number) => {
     try {
@@ -100,13 +119,28 @@ function PrivateRanks() {
     }
   };
 
+  const handleEnd = async (id: number) => {
+    try {
+      await endMut.mutateAsync({ groupId: id });
+      setSelectedId(null);
+      queryClient.invalidateQueries({ queryKey: ['myGroups'] });
+      queryClient.invalidateQueries({ queryKey: ['groupRankings', id] });
+      toast({ title: t('privateRankEnded') });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed' });
+    }
+  };
+
   if (isLoading) {
     return <div className="flex justify-center p-8"><Spinner /></div>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="outline" onClick={() => setJoinOpen(true)}>
+          <KeyRound className="mr-2 h-4 w-4" /> {t('joinPrivateRank')}
+        </Button>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> {t('createPrivateRank')}
         </Button>
@@ -140,18 +174,50 @@ function PrivateRanks() {
           {activeGroup && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  {activeGroup.members.length} {t('members')}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>{activeGroup.members.length} {t('members')}</span>
+                  {isCreator && activeGroup.code && <PrivateRankCodeInfo code={activeGroup.code} />}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => handleLeave(activeGroup.id)}
-                  disabled={leaveMut.isPending}
-                >
-                  <LogOut className="mr-2 h-4 w-4" /> {t('leave')}
-                </Button>
+                {isCreator ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        disabled={endMut.isPending}
+                      >
+                        {endMut.isPending ? <Spinner className="mr-2" /> : <XCircle className="mr-2 h-4 w-4" />}
+                        {t('endPrivateRank')}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>{t('endPrivateRankTitle')}</AlertDialogTitle>
+                        <AlertDialogDescription>{t('endPrivateRankDescription')}</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => handleEnd(activeGroup.id)}
+                        >
+                          {t('endPrivateRank')}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleLeave(activeGroup.id)}
+                    disabled={leaveMut.isPending}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" /> {t('leave')}
+                  </Button>
+                )}
               </div>
 
               <section className="space-y-3">
@@ -176,7 +242,113 @@ function PrivateRanks() {
           setCreateOpen(false);
         }}
       />
+
+      <JoinGroupDialog
+        open={joinOpen}
+        onOpenChange={setJoinOpen}
+        onJoined={(id) => {
+          queryClient.invalidateQueries({ queryKey: ['myGroups'] });
+          setSelectedId(id);
+          setJoinOpen(false);
+        }}
+      />
     </div>
+  );
+}
+
+function PrivateRankCodeInfo({ code }: { code: string }) {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      toast({ title: t('copied') });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ variant: 'destructive', title: 'Error', description: 'Copy failed' });
+    }
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+          <Info className="h-4 w-4" />
+          <span className="sr-only">{t('privateRankCode')}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="space-y-3">
+        <div className="space-y-1">
+          <div className="text-sm font-medium">{t('privateRankCode')}</div>
+          <div className="text-xs text-muted-foreground">{t('sharePrivateRankCode')}</div>
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 p-3">
+          <span className="font-mono text-xl font-bold tracking-[0.25em] text-primary">{code}</span>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={copyCode}>
+            {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+            <span className="sr-only">{t('copy')}</span>
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function JoinGroupDialog({
+  open,
+  onOpenChange,
+  onJoined,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onJoined: (groupId: number) => void;
+}) {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const [code, setCode] = useState('');
+  const joinMut = useJoinGroup();
+
+  const submit = async () => {
+    try {
+      const group = await joinMut.mutateAsync({ data: { code: code.trim() } });
+      setCode('');
+      toast({ title: t('joinedPrivateRank') });
+      onJoined(group.id);
+    } catch (e: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: e?.data?.error || e?.error || t('privateRankNotFound'),
+      });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('joinPrivateRank')}</DialogTitle>
+          <DialogDescription>{t('joinPrivateRankHint')}</DialogDescription>
+        </DialogHeader>
+        <Input
+          placeholder={t('enterPrivateRankCode')}
+          value={code}
+          inputMode="numeric"
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          className="h-14 text-center font-mono text-2xl tracking-[0.3em]"
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('cancel')}</Button>
+          <Button onClick={submit} disabled={!code.trim() || joinMut.isPending}>
+            {joinMut.isPending && <Spinner className="mr-2" />}
+            {t('join')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

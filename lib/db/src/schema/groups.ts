@@ -5,8 +5,11 @@ import {
   timestamp,
   integer,
   uniqueIndex,
+  pgEnum,
 } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+
+export const rankGroupStatusEnum = pgEnum("rank_group_status", ["active", "ended"]);
 
 export const rankGroupsTable = pgTable("rank_groups", {
   id: serial("id").primaryKey(),
@@ -14,7 +17,10 @@ export const rankGroupsTable = pgTable("rank_groups", {
   createdBy: integer("created_by")
     .notNull()
     .references(() => usersTable.id, { onDelete: "restrict" }),
+  code: text("code").notNull().unique(),
+  status: rankGroupStatusEnum("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
 });
 
 export const rankGroupMembersTable = pgTable("rank_group_members", {

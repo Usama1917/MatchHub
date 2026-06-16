@@ -333,7 +333,12 @@ router.get("/:userId/groups", requireAuth, async (req: Request, res: Response) =
     .select({ group: rankGroupsTable })
     .from(rankGroupMembersTable)
     .innerJoin(rankGroupsTable, eq(rankGroupMembersTable.groupId, rankGroupsTable.id))
-    .where(eq(rankGroupMembersTable.userId, userId));
+    .where(
+      and(
+        eq(rankGroupMembersTable.userId, userId),
+        eq(rankGroupsTable.status, "active"),
+      ),
+    );
 
   const result = [];
   for (const { group } of groups) {
