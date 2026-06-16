@@ -56,12 +56,12 @@ export default function Rankings() {
 
         <TabsContent value="overall" className="mt-0 space-y-8 focus-visible:outline-none">
           <section className="space-y-3">
-            <h2 className="text-xl font-bold tracking-tight">{t('fifa')}</h2>
-            <RankingTable data={fifa || []} isLoading={lf} />
-          </section>
-          <section className="space-y-3">
             <h2 className="text-xl font-bold tracking-tight">{t('pes')}</h2>
             <RankingTable data={pes || []} isLoading={lp} />
+          </section>
+          <section className="space-y-3">
+            <h2 className="text-xl font-bold tracking-tight">{t('fifa')}</h2>
+            <RankingTable data={fifa || []} isLoading={lf} />
           </section>
         </TabsContent>
 
@@ -155,12 +155,12 @@ function PrivateRanks() {
               </div>
 
               <section className="space-y-3">
-                <h2 className="text-xl font-bold tracking-tight">{t('fifa')}</h2>
-                <RankingTable data={rankings?.fifa || []} isLoading={loadingRankings} />
-              </section>
-              <section className="space-y-3">
                 <h2 className="text-xl font-bold tracking-tight">{t('pes')}</h2>
                 <RankingTable data={rankings?.pes || []} isLoading={loadingRankings} />
+              </section>
+              <section className="space-y-3">
+                <h2 className="text-xl font-bold tracking-tight">{t('fifa')}</h2>
+                <RankingTable data={rankings?.fifa || []} isLoading={loadingRankings} />
               </section>
             </div>
           )}

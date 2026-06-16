@@ -16,7 +16,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 
@@ -70,9 +69,7 @@ export default function Login() {
       <Card className="w-full max-w-md relative z-10 border-border/50 bg-card/50 backdrop-blur-xl">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Trophy className="h-6 w-6 text-primary" />
-            </div>
+            <img src="/logo.png" alt="MatchHub" className="h-20 w-20 object-contain" />
           </div>
           <CardTitle className="text-2xl font-bold tracking-tight">{t('login')}</CardTitle>
           <CardDescription>Enter your credentials to access MatchHub</CardDescription>

@@ -187,10 +187,10 @@ export default function Profile() {
         </div>
       )}
 
-      <Tabs defaultValue="fifa" className="w-full">
+      <Tabs defaultValue="pes" className="w-full">
         <TabsList className="w-full grid grid-cols-2">
-          <TabsTrigger value="fifa" className="text-lg font-bold">{t('fifa')}</TabsTrigger>
           <TabsTrigger value="pes" className="text-lg font-bold">{t('pes')}</TabsTrigger>
+          <TabsTrigger value="fifa" className="text-lg font-bold">{t('fifa')}</TabsTrigger>
         </TabsList>
         
         <TabsContent value="fifa" className="mt-6 space-y-4">

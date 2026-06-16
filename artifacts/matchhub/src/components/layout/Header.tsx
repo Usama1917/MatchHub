@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { Trophy, History, Home, User, PlusCircle, LogOut, Shield } from 'lucide-react';
+import { History, Home, User, PlusCircle, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useLogout } from '@workspace/api-client-react';
@@ -38,8 +38,8 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 max-w-screen-2xl items-center px-4">
-        <Link href="/" className="mr-6 flex items-center space-x-2 rtl:ml-6 rtl:mr-0">
-          <Trophy className="h-6 w-6 text-primary" />
+        <Link href="/" className="mr-6 flex items-center space-x-2 rtl:ml-6 rtl:mr-0 rtl:space-x-reverse">
+          <img src="/logo.png" alt="MatchHub" className="h-8 w-8 object-contain" />
           <span className="hidden font-bold sm:inline-block">MatchHub</span>
         </Link>
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end rtl:space-x-reverse">
