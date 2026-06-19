@@ -1,5 +1,6 @@
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
+  timeoutMs?: number;
 };
 
 export type ErrorType<T = unknown> = ApiError<T>;
@@ -10,6 +11,7 @@ export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 // ---------------------------------------------------------------------------
 // Module-level configuration
@@ -76,6 +78,55 @@ function resolveUrl(input: RequestInfo | URL): string {
   if (typeof input === "string") return input;
   if (isUrl(input)) return input.toString();
   return input.url;
+}
+
+function createTimeoutError(timeoutMs: number): Error {
+  if (typeof DOMException !== "undefined") {
+    return new DOMException(
+      `Request timed out after ${timeoutMs}ms`,
+      "TimeoutError",
+    );
+  }
+
+  const error = new Error(`Request timed out after ${timeoutMs}ms`);
+  error.name = "TimeoutError";
+  return error;
+}
+
+function createRequestSignal(
+  signal: AbortSignal | null | undefined,
+  timeoutMs: number,
+): { signal?: AbortSignal; cleanup: () => void } {
+  if (
+    timeoutMs <= 0 ||
+    typeof AbortController === "undefined" ||
+    typeof setTimeout === "undefined"
+  ) {
+    return { signal: signal ?? undefined, cleanup: () => {} };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort(createTimeoutError(timeoutMs));
+  }, timeoutMs);
+
+  const forwardAbort = () => {
+    controller.abort(signal?.reason);
+  };
+
+  if (signal?.aborted) {
+    forwardAbort();
+  } else {
+    signal?.addEventListener("abort", forwardAbort, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeoutId);
+      signal?.removeEventListener("abort", forwardAbort);
+    },
+  };
 }
 
 function mergeHeaders(...sources: Array<HeadersInit | undefined>): Headers {
@@ -327,7 +378,12 @@ export async function customFetch<T = unknown>(
   options: CustomFetchOptions = {},
 ): Promise<T> {
   input = applyBaseUrl(input);
-  const { responseType = "auto", headers: headersInit, ...init } = options;
+  const {
+    responseType = "auto",
+    headers: headersInit,
+    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+    ...init
+  } = options;
 
   const method = resolveMethod(input, init.method);
 
@@ -360,12 +416,23 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  const requestSignal = createRequestSignal(init.signal, timeoutMs);
 
-  if (!response.ok) {
-    const errorData = await parseErrorBody(response, method);
-    throw new ApiError(response, errorData, requestInfo);
+  try {
+    const response = await fetch(input, {
+      ...init,
+      method,
+      headers,
+      signal: requestSignal.signal,
+    });
+
+    if (!response.ok) {
+      const errorData = await parseErrorBody(response, method);
+      throw new ApiError(response, errorData, requestInfo);
+    }
+
+    return (await parseSuccessBody(response, responseType, requestInfo)) as T;
+  } finally {
+    requestSignal.cleanup();
   }
-
-  return (await parseSuccessBody(response, responseType, requestInfo)) as T;
 }

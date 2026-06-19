@@ -42,7 +42,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Trophy, Plus, Search, Check, X, LogOut, Users, Info, Copy, KeyRound, XCircle } from 'lucide-react';
+import { Trophy, Plus, Search, Check, X, LogOut, Users, Info, Copy, KeyRound, XCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -94,7 +94,17 @@ function PrivateRanks() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: groups, isLoading } = useListMyGroups({ query: { queryKey: ['myGroups'] } });
+  const {
+    data: groups,
+    error: groupsError,
+    isError: hasGroupsError,
+    isFetching: isFetchingGroups,
+    isLoading,
+    refetch: refetchGroups,
+  } = useListMyGroups({
+    query: { queryKey: ['myGroups'], retry: false },
+    request: { timeoutMs: 12_000 },
+  });
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
@@ -102,8 +112,16 @@ function PrivateRanks() {
   const endMut = useEndGroup();
 
   const activeId = selectedId ?? groups?.[0]?.id ?? null;
-  const { data: rankings, isLoading: loadingRankings } = useGetGroupRankings(activeId as number, {
-    query: { enabled: !!activeId, queryKey: ['groupRankings', activeId] },
+  const {
+    data: rankings,
+    error: rankingsError,
+    isError: hasRankingsError,
+    isFetching: isFetchingRankings,
+    isLoading: loadingRankings,
+    refetch: refetchRankings,
+  } = useGetGroupRankings(activeId ?? 0, {
+    query: { enabled: activeId !== null, queryKey: ['groupRankings', activeId], retry: false },
+    request: { timeoutMs: 12_000 },
   });
   const activeGroup = groups?.find((g) => g.id === activeId);
   const isCreator = activeGroup?.createdBy === currentUser?.id;
@@ -146,7 +164,14 @@ function PrivateRanks() {
         </Button>
       </div>
 
-      {!groups || groups.length === 0 ? (
+      {hasGroupsError ? (
+        <PrivateRankErrorState
+          title={t('privateRanksLoadError')}
+          description={getApiErrorMessage(groupsError, t('privateRanksLoadError'))}
+          isRetrying={isFetchingGroups}
+          onRetry={() => refetchGroups()}
+        />
+      ) : !groups || groups.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 text-center bg-card rounded-lg border border-border/50">
           <Users className="h-12 w-12 text-muted-foreground/30 mb-4" />
           <p className="text-muted-foreground">{t('noGroups')}</p>
@@ -220,14 +245,25 @@ function PrivateRanks() {
                 )}
               </div>
 
-              <section className="space-y-3">
-                <h2 className="text-xl font-bold tracking-tight">{t('pes')}</h2>
-                <RankingTable data={rankings?.pes || []} isLoading={loadingRankings} />
-              </section>
-              <section className="space-y-3">
-                <h2 className="text-xl font-bold tracking-tight">{t('fifa')}</h2>
-                <RankingTable data={rankings?.fifa || []} isLoading={loadingRankings} />
-              </section>
+              {hasRankingsError ? (
+                <PrivateRankErrorState
+                  title={t('privateRankingsLoadError')}
+                  description={getApiErrorMessage(rankingsError, t('privateRankingsLoadError'))}
+                  isRetrying={isFetchingRankings}
+                  onRetry={() => refetchRankings()}
+                />
+              ) : (
+                <>
+                  <section className="space-y-3">
+                    <h2 className="text-xl font-bold tracking-tight">{t('pes')}</h2>
+                    <RankingTable data={rankings?.pes || []} isLoading={loadingRankings} />
+                  </section>
+                  <section className="space-y-3">
+                    <h2 className="text-xl font-bold tracking-tight">{t('fifa')}</h2>
+                    <RankingTable data={rankings?.fifa || []} isLoading={loadingRankings} />
+                  </section>
+                </>
+              )}
             </div>
           )}
         </>
@@ -252,6 +288,39 @@ function PrivateRanks() {
           setJoinOpen(false);
         }}
       />
+    </div>
+  );
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const apiError = error as { data?: { error?: string }; error?: string; message?: string };
+  return apiError?.data?.error || apiError?.error || apiError?.message || fallback;
+}
+
+function PrivateRankErrorState({
+  title,
+  description,
+  isRetrying,
+  onRetry,
+}: {
+  title: string;
+  description: string;
+  isRetrying: boolean;
+  onRetry: () => void;
+}) {
+  const { t } = useLanguage();
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-destructive/30 bg-destructive/5 p-8 text-center">
+      <AlertCircle className="h-10 w-10 text-destructive" />
+      <div className="space-y-1">
+        <p className="font-medium text-destructive">{title}</p>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      <Button variant="outline" onClick={onRetry} disabled={isRetrying}>
+        {isRetrying && <Spinner className="mr-2" />}
+        {t('tryAgain')}
+      </Button>
     </div>
   );
 }
