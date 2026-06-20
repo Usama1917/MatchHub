@@ -342,6 +342,12 @@ export interface UserGroupPosition {
   name: string;
   memberCount: number;
   position: number;
+  /** Present only when the profile owner views their own profile */
+  hiddenOnProfile?: boolean;
+}
+
+export interface ProfileVisibilityInput {
+  hidden: boolean;
 }
 
 export interface DashboardStats {

@@ -521,6 +521,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /groups/{groupId}/profile-visibility:
+    post:
+      operationId: setGroupProfileVisibility
+      tags: [groups]
+      summary: Show or hide this private rank on the caller's own profile
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileVisibilityInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Not a member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /groups/{groupId}/leave:
     post:
       operationId: leaveGroup
@@ -1499,6 +1530,16 @@ components:
           type: integer
         position:
           type: integer
+        hiddenOnProfile:
+          type: boolean
+          description: Present only when the profile owner views their own profile
+
+    ProfileVisibilityInput:
+      type: object
+      required: [hidden]
+      properties:
+        hidden:
+          type: boolean
 
     DashboardStats:
       type: object

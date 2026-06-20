@@ -420,6 +420,37 @@ router.get("/:groupId/matches", requireAuth, async (req: Request, res: Response)
   res.json(matches);
 });
 
+// Toggle whether this rank appears on the caller's own profile.
+router.post("/:groupId/profile-visibility", requireAuth, async (req: Request, res: Response) => {
+  const groupId = parseIdParam(req.params.groupId);
+  if (!groupId) {
+    res.status(400).json({ error: "Invalid group ID" });
+    return;
+  }
+
+  const userId = req.session.userId!;
+  if (!(await isMember(groupId, userId))) {
+    res.status(403).json({ error: "You are not a member of this private rank" });
+    return;
+  }
+
+  const hidden = req.body?.hidden === true;
+  await db
+    .update(rankGroupMembersTable)
+    .set({ hiddenOnProfile: hidden })
+    .where(
+      and(
+        eq(rankGroupMembersTable.groupId, groupId),
+        eq(rankGroupMembersTable.userId, userId),
+      ),
+    );
+
+  res.json({
+    success: true,
+    message: hidden ? "Hidden from your profile" : "Shown on your profile",
+  });
+});
+
 router.post("/:groupId/leave", requireAuth, async (req: Request, res: Response) => {
   const groupId = parseIdParam(req.params.groupId);
   if (!groupId) {

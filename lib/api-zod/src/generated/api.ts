@@ -319,7 +319,8 @@ export const ListUserGroupsResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
   "memberCount": zod.number(),
-  "position": zod.number()
+  "position": zod.number(),
+  "hiddenOnProfile": zod.boolean().optional().describe('Present only when the profile owner views their own profile')
 })
 export const ListUserGroupsResponse = zod.array(ListUserGroupsResponseItem)
 
@@ -492,6 +493,23 @@ export const GetGroupMatchesResponseItem = zod.object({
 }).optional()
 })
 export const GetGroupMatchesResponse = zod.array(GetGroupMatchesResponseItem)
+
+
+/**
+ * @summary Show or hide this private rank on the caller's own profile
+ */
+export const SetGroupProfileVisibilityParams = zod.object({
+  "groupId": zod.coerce.number()
+})
+
+export const SetGroupProfileVisibilityBody = zod.object({
+  "hidden": zod.boolean()
+})
+
+export const SetGroupProfileVisibilityResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
 
 
 /**

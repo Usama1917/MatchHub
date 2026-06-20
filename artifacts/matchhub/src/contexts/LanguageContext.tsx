@@ -145,6 +145,8 @@ export const translations: Translations = {
   notRanked: { en: 'Unranked', ar: 'غير مصنّف' },
   rankTab: { en: 'Rank', ar: 'الترتيب' },
   matchHistoryTab: { en: 'Match History', ar: 'سجل المباريات' },
+  hideFromProfile: { en: 'Hide from profile', ar: 'إخفاء من البروفايل' },
+  showOnProfile: { en: 'Show on profile', ar: 'إظهار في البروفايل' },
 
   // Follow
   follow: { en: 'Follow', ar: 'متابعة' },

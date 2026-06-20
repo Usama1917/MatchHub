@@ -10,6 +10,7 @@ import {
   useListFollowers,
   useListFollowing,
   useListUserGroups,
+  useSetGroupProfileVisibility,
   getGetUserQueryKey,
 } from '@workspace/api-client-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -26,8 +27,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Trophy, Activity, Target, UserPlus, UserMinus, Heart } from 'lucide-react';
+import { Trophy, Activity, Target, UserPlus, UserMinus, Heart, Eye, EyeOff } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
 
 // Format a goal difference with an explicit + sign for positive values.
 const fmtGD = (n: number) => (n > 0 ? `+${n}` : `${n}`);
@@ -110,6 +112,18 @@ export default function Profile() {
     }
   };
 
+  const visibilityMut = useSetGroupProfileVisibility();
+  const toggleRankVisibility = async (e: React.MouseEvent, groupId: number, currentlyHidden: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await visibilityMut.mutateAsync({ groupId, data: { hidden: !currentlyHidden } });
+      queryClient.invalidateQueries({ queryKey: ['userGroups', idToLoad] });
+    } catch {
+      /* ignore */
+    }
+  };
+
   const dialogList = followDialog === 'followers' ? followersList : followingList;
 
   const medal = (pos: number) => (pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : '🏅');
@@ -126,15 +140,15 @@ export default function Profile() {
 
   return (
     <div className="container max-w-screen-xl mx-auto p-4 space-y-8 pb-24">
-      <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-card/30 border border-border/50 rounded-2xl">
-        <Avatar className="h-24 w-24 border-4 border-background shadow-xl">
-          <AvatarFallback className="text-3xl bg-primary/20 text-primary">
+      <div className="flex flex-col md:flex-row items-center gap-6 p-4 sm:p-6 bg-card/30 border border-border/50 rounded-2xl overflow-hidden">
+        <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-4 border-background shadow-xl shrink-0">
+          <AvatarFallback className="text-2xl sm:text-3xl bg-primary/20 text-primary">
             {userProfile.displayName.substring(0,2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <div className="text-center md:text-left rtl:md:text-right">
-          <h1 className="text-3xl font-bold">{userProfile.displayName}</h1>
-          <p className="text-muted-foreground text-lg">@{userProfile.username}</p>
+        <div className="flex-1 min-w-0 w-full text-center md:text-left rtl:md:text-right">
+          <h1 className="text-2xl sm:text-3xl font-bold truncate">{userProfile.displayName}</h1>
+          <p className="text-muted-foreground text-base sm:text-lg truncate">@{userProfile.username}</p>
 
           <div className="flex items-center justify-center md:justify-start gap-4 mt-3">
             <button
@@ -151,8 +165,10 @@ export default function Profile() {
               <span className="font-bold">{userProfile.followingCount ?? 0}</span>{' '}
               <span className="text-muted-foreground">{t('following')}</span>
             </button>
+          </div>
 
-            {!isOwnProfile && (
+          {!isOwnProfile && (
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-3">
               <Button
                 size="sm"
                 variant={userProfile.isFollowing ? 'outline' : 'default'}
@@ -165,9 +181,7 @@ export default function Profile() {
                   <><UserPlus className="mr-2 h-4 w-4" />{t('follow')}</>
                 )}
               </Button>
-            )}
 
-            {!isOwnProfile && (
               <Button
                 size="sm"
                 variant={userProfile.isCloseFriend ? 'default' : 'outline'}
@@ -178,14 +192,14 @@ export default function Profile() {
                 <Heart className={`mr-2 h-4 w-4 ${userProfile.isCloseFriend ? 'fill-current' : ''}`} />
                 {t('closeFriend')}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
 
           {!isOwnProfile && (
-            <p className="mt-2 text-xs text-muted-foreground max-w-md">{t('closeFriendHint')}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{t('closeFriendHint')}</p>
           )}
         </div>
-        <div className="md:ml-auto flex gap-4 text-center">
+        <div className="md:ml-auto flex gap-4 text-center shrink-0">
           <div>
             <div className="text-3xl font-black text-primary">{userProfile.stats.totalPoints}</div>
             <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider">{t('points')}</div>
@@ -211,15 +225,26 @@ export default function Profile() {
           <div className="flex flex-wrap gap-3">
             {userGroups.map((g) => (
               <Link key={g.id} href="/rankings">
-                <Card className="hover:border-primary/40 transition-colors cursor-pointer">
+                <Card className={cn('hover:border-primary/40 transition-colors cursor-pointer', g.hiddenOnProfile && 'opacity-50')}>
                   <CardContent className="p-3 flex items-center gap-3">
                     <span className="text-2xl">{medal(g.position)}</span>
-                    <div>
-                      <div className="font-medium text-sm">{g.name}</div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm truncate">{g.name}</div>
                       <div className="text-xs text-muted-foreground">
                         {g.position > 0 ? `#${g.position}` : t('notRanked')} · {g.memberCount} {t('members')}
                       </div>
                     </div>
+                    {isOwnProfile && (
+                      <button
+                        onClick={(e) => toggleRankVisibility(e, g.id, !!g.hiddenOnProfile)}
+                        disabled={visibilityMut.isPending}
+                        className="ml-1 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                        title={g.hiddenOnProfile ? t('showOnProfile') : t('hideFromProfile')}
+                        aria-label={g.hiddenOnProfile ? t('showOnProfile') : t('hideFromProfile')}
+                      >
+                        {g.hiddenOnProfile ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    )}
                   </CardContent>
                 </Card>
               </Link>

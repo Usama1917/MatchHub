@@ -413,8 +413,12 @@ router.get("/:userId/groups", requireAuth, async (req: Request, res: Response) =
     return;
   }
 
+  // The profile owner sees all their ranks (with a hide/show flag); other
+  // viewers only see the ranks the owner has chosen to keep visible.
+  const isOwner = req.session.userId === userId;
+
   const groups = await db
-    .select({ group: rankGroupsTable })
+    .select({ group: rankGroupsTable, hidden: rankGroupMembersTable.hiddenOnProfile })
     .from(rankGroupMembersTable)
     .innerJoin(rankGroupsTable, eq(rankGroupMembersTable.groupId, rankGroupsTable.id))
     .where(
@@ -425,7 +429,8 @@ router.get("/:userId/groups", requireAuth, async (req: Request, res: Response) =
     );
 
   const result = [];
-  for (const { group } of groups) {
+  for (const { group, hidden } of groups) {
+    if (!isOwner && hidden) continue;
     const memberIds = await getGroupMemberIds(group.id);
     const ranking = await computeGroupRankings(memberIds, undefined, group.createdAt);
     const idx = ranking.findIndex((e) => e.userId === userId);
@@ -434,6 +439,7 @@ router.get("/:userId/groups", requireAuth, async (req: Request, res: Response) =
       name: group.name,
       memberCount: memberIds.length,
       position: idx >= 0 ? idx + 1 : 0, // 0 = unranked (no qualifying matches yet)
+      hiddenOnProfile: hidden,
     });
   }
 

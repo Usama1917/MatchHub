@@ -4,6 +4,7 @@ import {
   text,
   timestamp,
   integer,
+  boolean,
   index,
   uniqueIndex,
   pgEnum,
@@ -32,6 +33,7 @@ export const rankGroupMembersTable = pgTable("rank_group_members", {
   userId: integer("user_id")
     .notNull()
     .references(() => usersTable.id, { onDelete: "cascade" }),
+  hiddenOnProfile: boolean("hidden_on_profile").notNull().default(false),
 }, (table) => ({
   groupUserUnique: uniqueIndex("rank_group_members_unique").on(
     table.groupId,

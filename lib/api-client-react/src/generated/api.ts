@@ -41,6 +41,7 @@ import type {
   MatchResultInput,
   Party,
   PartyInput,
+  ProfileVisibilityInput,
   RankingEntry,
   RegisterInput,
   SuccessResponse,
@@ -1791,6 +1792,78 @@ export function useGetGroupMatches<TData = Awaited<ReturnType<typeof getGroupMat
 
 
 
+
+export const getSetGroupProfileVisibilityUrl = (groupId: number,) => {
+
+
+
+
+  return `/api/groups/${groupId}/profile-visibility`
+}
+
+/**
+ * @summary Show or hide this private rank on the caller's own profile
+ */
+export const setGroupProfileVisibility = async (groupId: number,
+    profileVisibilityInput: ProfileVisibilityInput, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getSetGroupProfileVisibilityUrl(groupId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      profileVisibilityInput,)
+  }
+);}
+
+
+
+
+export const getSetGroupProfileVisibilityMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setGroupProfileVisibility>>, TError,{groupId: number;data: BodyType<ProfileVisibilityInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setGroupProfileVisibility>>, TError,{groupId: number;data: BodyType<ProfileVisibilityInput>}, TContext> => {
+
+const mutationKey = ['setGroupProfileVisibility'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setGroupProfileVisibility>>, {groupId: number;data: BodyType<ProfileVisibilityInput>}> = (props) => {
+          const {groupId,data} = props ?? {};
+
+          return  setGroupProfileVisibility(groupId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetGroupProfileVisibilityMutationResult = NonNullable<Awaited<ReturnType<typeof setGroupProfileVisibility>>>
+    export type SetGroupProfileVisibilityMutationBody = BodyType<ProfileVisibilityInput>
+    export type SetGroupProfileVisibilityMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Show or hide this private rank on the caller's own profile
+ */
+export const useSetGroupProfileVisibility = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setGroupProfileVisibility>>, TError,{groupId: number;data: BodyType<ProfileVisibilityInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setGroupProfileVisibility>>,
+        TError,
+        {groupId: number;data: BodyType<ProfileVisibilityInput>},
+        TContext
+      > => {
+      return useMutation(getSetGroupProfileVisibilityMutationOptions(options));
+    }
 
 export const getLeaveGroupUrl = (groupId: number,) => {
 
