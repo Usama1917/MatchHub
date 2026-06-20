@@ -68,6 +68,7 @@ export default function Profile() {
   const unfollowMut = useUnfollowUser();
   const closeFriendMut = useCloseFriendUser();
   const uncloseFriendMut = useUncloseFriendUser();
+  const visibilityMut = useSetGroupProfileVisibility();
   const { data: followersList } = useListFollowers(idToLoad as number, {
     query: { enabled: !!idToLoad && followDialog === 'followers', queryKey: ['followers', idToLoad] },
   });
@@ -114,7 +115,6 @@ export default function Profile() {
     }
   };
 
-  const visibilityMut = useSetGroupProfileVisibility();
   const toggleRankVisibility = async (e: React.MouseEvent, groupId: number, currentlyHidden: boolean) => {
     e.preventDefault();
     e.stopPropagation();
