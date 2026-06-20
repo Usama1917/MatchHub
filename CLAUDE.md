@@ -40,6 +40,11 @@ Stack: Express 5 + express-session + connect-pg-simple; PostgreSQL + Drizzle; Re
 - Auth is cookie sessions (`req.session.userId`). Use `requireAuth` / `requireAdmin` middleware (both verify against the DB).
 - `isSpectator` is an integer `0/1` in the DB, exposed as boolean in API responses.
 - Wrap multi-write operations in `db.transaction(...)`.
+- **Rules of Hooks**: never call a hook (incl. generated `use*` query/mutation hooks) after an
+  early `return` — many pages return a `<Spinner/>` while `isLoading`. A hook below that guard
+  crashes the whole page once data loads ("Rendered more hooks…" → blank screen). Put every hook
+  at the top, above any conditional return. `typecheck`/`build` do NOT catch this — verify by
+  actually loading the page.
 
 ## Domain logic (non-obvious)
 - **Scoring**: 1v1 winner = 3 pts; 2v2/3v3 winner = 2 pts/player; losers 0. Win type
@@ -53,10 +58,14 @@ Stack: Express 5 + express-session + connect-pg-simple; PostgreSQL + Drizzle; Re
 - **Private ranks (groups)**: a completed match counts toward a rank only when ≥2 of its
   non-spectator players are members **and** the match was created on/after the rank's `createdAt`
   (the rank scores from scratch, not players' whole history — see `computeGroupRankings(memberIds, game, since)`).
-  Rankings UI has Rank / Match History tabs (`GET /groups/:id/matches`).
+  Rankings UI has Rank / Match History tabs (`GET /groups/:id/matches`). Ended ranks (`status != active`)
+  never appear in any profile (`/users/:id/groups` filters to active). A member can hide a rank from
+  their own profile (`rank_group_members.hidden_on_profile`, toggled via
+  `POST /groups/:id/profile-visibility`); the owner still sees it flagged, other viewers don't.
 - **Close friends** (`close_friends` table): directed edges. When two users are **mutual** close
   friends, adding one to a party the other creates joins them immediately (no invitation) — see
   `mutualCloseFriendIds` in `routes/parties.ts`.
+- **Time display**: match times use 12-hour `h:mm a` (AM/PM) via date-fns, with the `ar` locale in Arabic.
 
 ## Local development
 - `dotenv` loads `.env` from each package's own dir, not the repo root. The API reads `.env` via a
@@ -87,6 +96,10 @@ override them in the dashboard.
 - Optional perf: tune `PG_POOL_MAX` low for serverless; pooler URL already mitigates connection fan-out.
 
 ## Gotchas
+- `typecheck` + `build` passing does NOT mean it runs. Render-time crashes (Rules-of-Hooks,
+  reading undefined) only show at runtime — load the affected page after frontend changes.
+- Migrations currently run through `0008_rank_member_profile_visibility.sql`. Each new feature that
+  touches the DB adds a migration that must be applied to Supabase prod manually (see Deployment).
 - `connect-pg-simple` needs the `session` table — created by `db:migrate`.
 - Vite `dev:web` won't pick up the API port unless `API_PROXY_TARGET` is exported (see Local development).
 - Don't commit `.env`, the `artifacts/api-server/.env` symlink, or `public/` (all gitignored).
