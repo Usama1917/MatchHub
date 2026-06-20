@@ -31,11 +31,30 @@ export default function NewMatch() {
   });
   const createMatchMut = useCreateMatch();
 
-  const [step, setStep] = useState<Step>(1);
-  const [game, setGame] = useState<MatchInputGame | null>(null);
-  const [format, setFormat] = useState<MatchInputMatchFormat | null>(null);
-  const [teamA, setTeamA] = useState<(User | null)[]>([]);
-  const [teamB, setTeamB] = useState<(User | null)[]>([]);
+  // When launched from a completed match's "different players" action, the source
+  // game + format are passed as query params so we skip straight to arranging
+  // the new lineup (same kind of match, different competitors).
+  const presetParams = new URLSearchParams(
+    typeof window !== 'undefined' ? window.location.search : '',
+  );
+  const rawGame = presetParams.get('game');
+  const rawFormat = presetParams.get('format');
+  const presetGame: MatchInputGame | null =
+    rawGame === 'fifa' || rawGame === 'pes' ? rawGame : null;
+  const presetFormat: MatchInputMatchFormat | null =
+    rawFormat === '1v1' || rawFormat === '2v2' || rawFormat === '3v3' ? rawFormat : null;
+  const hasPreset = presetGame !== null && presetFormat !== null;
+  const presetSlots = presetFormat ? parseInt(presetFormat[0]) : 0;
+
+  const [step, setStep] = useState<Step>(hasPreset ? 3 : 1);
+  const [game, setGame] = useState<MatchInputGame | null>(presetGame);
+  const [format, setFormat] = useState<MatchInputMatchFormat | null>(presetFormat);
+  const [teamA, setTeamA] = useState<(User | null)[]>(
+    hasPreset ? Array(presetSlots).fill(null) : [],
+  );
+  const [teamB, setTeamB] = useState<(User | null)[]>(
+    hasPreset ? Array(presetSlots).fill(null) : [],
+  );
 
   if (isLoading) {
     return <div className="flex h-screen items-center justify-center"><Spinner size="lg" /></div>;

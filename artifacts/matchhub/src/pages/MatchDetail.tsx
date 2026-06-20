@@ -2,6 +2,7 @@ import {
   useGetMatch,
   useGetParty,
   useCreateMatch,
+  useCancelMatch,
   MatchInputGame,
   MatchInputMatchFormat,
 } from '@workspace/api-client-react';
@@ -12,9 +13,21 @@ import { MatchCard } from '@/components/MatchCard';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
-import { ChevronLeft, RotateCcw } from 'lucide-react';
+import { ChevronLeft, RotateCcw, Users, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function MatchDetail() {
   const { matchId } = useParams();
@@ -22,6 +35,7 @@ export default function MatchDetail() {
   const { t } = useLanguage();
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const id = parseInt(matchId || '0', 10);
   const { data: match, isLoading } = useGetMatch(id, { query: { enabled: !!id, queryKey: ['match', id] } });
@@ -29,6 +43,7 @@ export default function MatchDetail() {
     query: { enabled: !!match?.partyId, queryKey: ['party', match?.partyId] },
   });
   const createMatchMut = useCreateMatch();
+  const cancelMatchMut = useCancelMatch();
 
   if (isLoading) {
     return (
@@ -44,6 +59,19 @@ export default function MatchDetail() {
 
   const isOrganizer =
     currentUser?.id === match.createdBy || currentUser?.id === party?.createdBy;
+
+  const handleCancel = async () => {
+    try {
+      await cancelMatchMut.mutateAsync({ matchId: match.id });
+      queryClient.invalidateQueries({ queryKey: ['matches', 'party', match.partyId] });
+      queryClient.invalidateQueries({ queryKey: ['party', match.partyId] });
+      queryClient.invalidateQueries({ queryKey: ['activeParty'] });
+      toast({ title: t('matchCancelled') });
+      setLocation(`/parties/${match.partyId}`);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: t('error'), description: e?.data?.error || e?.error || t('failed') });
+    }
+  };
 
   const handleRematch = async () => {
     const teamA = match.players.filter((p) => p.team === 'team_a').map((p) => p.userId);
@@ -66,7 +94,11 @@ export default function MatchDetail() {
 
   return (
     <div className="container max-w-screen-md mx-auto p-4 space-y-6">
-      <Button variant="ghost" onClick={() => window.history.back()} className="mb-2 -ml-4">
+      <Button
+        variant="ghost"
+        onClick={() => setLocation(match.partyId ? `/parties/${match.partyId}` : '/')}
+        className="mb-2 -ml-4"
+      >
         <ChevronLeft className="mr-2 h-4 w-4" />
         {t('back')}
       </Button>
@@ -102,7 +134,7 @@ export default function MatchDetail() {
         </Card>
 
         {match.status === 'in_progress' && (
-          <div className="pt-6">
+          <div className="pt-6 space-y-3">
             <Button
               size="lg"
               className="w-full font-bold shadow-lg shadow-primary/20"
@@ -110,20 +142,66 @@ export default function MatchDetail() {
             >
               {t('submitResult')}
             </Button>
+
+            {isOrganizer && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full font-bold text-destructive hover:text-destructive hover:bg-destructive/10"
+                    disabled={cancelMatchMut.isPending}
+                  >
+                    {cancelMatchMut.isPending ? <Spinner className="mr-2" /> : <XCircle className="mr-2 h-4 w-4" />}
+                    {t('cancelMatch')}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t('cancelMatchTitle')}</AlertDialogTitle>
+                    <AlertDialogDescription>{t('cancelMatchDesc')}</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={handleCancel}
+                    >
+                      {t('cancelMatch')}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         )}
 
         {match.status === 'completed' && isOrganizer && (
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-full font-bold"
-            onClick={handleRematch}
-            disabled={createMatchMut.isPending}
-          >
-            {createMatchMut.isPending ? <Spinner className="mr-2" /> : <RotateCcw className="mr-2 h-4 w-4" />}
-            {t('rematch')}
-          </Button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              size="lg"
+              className="font-bold"
+              onClick={handleRematch}
+              disabled={createMatchMut.isPending}
+            >
+              {createMatchMut.isPending ? <Spinner className="mr-2" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+              {t('rematch')}
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="font-bold"
+              onClick={() =>
+                setLocation(
+                  `/parties/${match.partyId}/new-match?game=${match.game}&format=${match.matchFormat}`,
+                )
+              }
+            >
+              <Users className="mr-2 h-4 w-4" />
+              {t('newMatchDifferent')}
+            </Button>
+          </div>
         )}
       </div>
     </div>

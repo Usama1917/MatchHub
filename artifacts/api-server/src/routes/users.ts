@@ -5,6 +5,7 @@ import {
   matchPlayersTable,
   matchesTable,
   followsTable,
+  closeFriendsTable,
   rankGroupsTable,
   rankGroupMembersTable,
 } from "@workspace/db";
@@ -27,13 +28,16 @@ function safeUser(user: any) {
 }
 
 router.get("/", requireAuth, async (req: Request, res: Response) => {
-  const search = req.query.search as string | undefined;
+  const rawSearch = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  // Escape LIKE metacharacters so a literal % or _ in the query is matched as
+  // text rather than treated as a wildcard.
+  const escaped = rawSearch.replace(/[\\%_]/g, "\\$&");
 
-  const users = search
+  const users = rawSearch
     ? await db
         .select()
         .from(usersTable)
-        .where(ilike(usersTable.username, `%${search}%`))
+        .where(ilike(usersTable.username, `%${escaped}%`))
         .limit(20)
     : await db.select().from(usersTable).limit(100);
 
@@ -76,6 +80,19 @@ router.get("/friends", requireAuth, async (req: Request, res: Response) => {
     .where(inArray(usersTable.id, mutualIds));
 
   res.json(users.map(safeUser));
+});
+
+// Users the current user has marked as close friends.
+// Declared before /:userId so "close-friends" isn't parsed as a user id.
+router.get("/close-friends", requireAuth, async (req: Request, res: Response) => {
+  const me = req.session.userId!;
+  const rows = await db
+    .select({ user: usersTable })
+    .from(closeFriendsTable)
+    .innerJoin(usersTable, eq(closeFriendsTable.closeFriendId, usersTable.id))
+    .where(eq(closeFriendsTable.userId, me));
+
+  res.json(rows.map((r) => safeUser(r.user)));
 });
 
 router.get("/:userId", requireAuth, async (req: Request, res: Response) => {
@@ -188,6 +205,21 @@ router.get("/:userId", requireAuth, async (req: Request, res: Response) => {
     isFollowing = !!f;
   }
 
+  let isCloseFriend = false;
+  if (me && me !== userId) {
+    const [cf] = await db
+      .select()
+      .from(closeFriendsTable)
+      .where(
+        and(
+          eq(closeFriendsTable.userId, me),
+          eq(closeFriendsTable.closeFriendId, userId),
+        ),
+      )
+      .limit(1);
+    isCloseFriend = !!cf;
+  }
+
   res.json({
     id: user.id,
     username: user.username,
@@ -197,6 +229,7 @@ router.get("/:userId", requireAuth, async (req: Request, res: Response) => {
     followerCount: followerRow.count,
     followingCount: followingRow.count,
     isFollowing,
+    isCloseFriend,
     stats: {
       totalMatches,
       totalWins,
@@ -290,6 +323,57 @@ router.delete("/:userId/follow", requireAuth, async (req: Request, res: Response
   res.json({ success: true, message: "Unfollowed" });
 });
 
+router.post("/:userId/close-friend", requireAuth, async (req: Request, res: Response) => {
+  const targetId = parseIdParam(req.params.userId);
+  if (!targetId) {
+    res.status(400).json({ error: "Invalid user ID" });
+    return;
+  }
+
+  const me = req.session.userId!;
+  if (targetId === me) {
+    res.status(400).json({ error: "You cannot add yourself as a close friend" });
+    return;
+  }
+
+  const [target] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.id, targetId))
+    .limit(1);
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  await db
+    .insert(closeFriendsTable)
+    .values({ userId: me, closeFriendId: targetId })
+    .onConflictDoNothing();
+
+  res.json({ success: true, message: "Close friend added" });
+});
+
+router.delete("/:userId/close-friend", requireAuth, async (req: Request, res: Response) => {
+  const targetId = parseIdParam(req.params.userId);
+  if (!targetId) {
+    res.status(400).json({ error: "Invalid user ID" });
+    return;
+  }
+
+  const me = req.session.userId!;
+  await db
+    .delete(closeFriendsTable)
+    .where(
+      and(
+        eq(closeFriendsTable.userId, me),
+        eq(closeFriendsTable.closeFriendId, targetId),
+      ),
+    );
+
+  res.json({ success: true, message: "Close friend removed" });
+});
+
 router.get("/:userId/followers", requireAuth, async (req: Request, res: Response) => {
   const userId = parseIdParam(req.params.userId);
   if (!userId) {
@@ -343,7 +427,7 @@ router.get("/:userId/groups", requireAuth, async (req: Request, res: Response) =
   const result = [];
   for (const { group } of groups) {
     const memberIds = await getGroupMemberIds(group.id);
-    const ranking = await computeGroupRankings(memberIds);
+    const ranking = await computeGroupRankings(memberIds, undefined, group.createdAt);
     const idx = ranking.findIndex((e) => e.userId === userId);
     result.push({
       id: group.id,

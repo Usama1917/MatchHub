@@ -4,10 +4,11 @@ import {
   partiesTable,
   partyMembersTable,
   partyInvitationsTable,
+  closeFriendsTable,
   usersTable,
 } from "@workspace/db";
 import { eq, inArray, ne, desc, and } from "drizzle-orm";
-import { requireAuth } from "../middlewares/auth";
+import { requireAuth, requireAdmin } from "../middlewares/auth";
 import { parseIdParam } from "../lib/http";
 import { generatePartyCode } from "../lib/partyCode";
 
@@ -84,6 +85,38 @@ async function usersInActiveParty(
   return Array.from(new Set(rows.map((r) => r.userId)));
 }
 
+// Returns the subset of candidateIds who are MUTUAL close friends with userId
+// (each has marked the other as a close friend).
+async function mutualCloseFriendIds(
+  userId: number,
+  candidateIds: number[],
+): Promise<number[]> {
+  if (candidateIds.length === 0) return [];
+
+  const iMarked = await db
+    .select({ id: closeFriendsTable.closeFriendId })
+    .from(closeFriendsTable)
+    .where(
+      and(
+        eq(closeFriendsTable.userId, userId),
+        inArray(closeFriendsTable.closeFriendId, candidateIds),
+      ),
+    );
+  const iMarkedIds = iMarked.map((r) => r.id);
+  if (iMarkedIds.length === 0) return [];
+
+  const theyMarked = await db
+    .select({ id: closeFriendsTable.userId })
+    .from(closeFriendsTable)
+    .where(
+      and(
+        eq(closeFriendsTable.closeFriendId, userId),
+        inArray(closeFriendsTable.userId, iMarkedIds),
+      ),
+    );
+  return theyMarked.map((r) => r.id);
+}
+
 async function insertPartyWithUniqueCode(createdBy: number) {
   for (let attempt = 0; attempt < 6; attempt++) {
     const code = generatePartyCode();
@@ -102,7 +135,9 @@ async function insertPartyWithUniqueCode(createdBy: number) {
   throw new Error("Could not generate a unique party code");
 }
 
-router.get("/", requireAuth, async (_req: Request, res: Response) => {
+// Admin-only: returns every party (including join codes). Regular members use
+// /active, /lookup, and /:partyId for the parties they belong to.
+router.get("/", requireAdmin, async (_req: Request, res: Response) => {
   const parties = await db
     .select()
     .from(partiesTable)
@@ -143,12 +178,26 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
+  // Mutual close friends who are currently free join the party immediately,
+  // skipping the invitation step. Everyone else gets a pending invitation.
+  const requestedInvitees = allMemberIds.filter((uid) => uid !== createdBy);
+  const mutualClose = await mutualCloseFriendIds(createdBy, requestedInvitees);
+  const busyClose =
+    mutualClose.length > 0 ? await usersInActiveParty(mutualClose) : [];
+  const busySet = new Set(busyClose);
+  const directIds = mutualClose.filter((id) => !busySet.has(id));
+  const directSet = new Set(directIds);
+  const inviteeIds = requestedInvitees.filter((uid) => !directSet.has(uid));
+
   const party = await insertPartyWithUniqueCode(createdBy);
 
-  // The creator joins immediately; everyone else gets a pending invitation.
-  await db.insert(partyMembersTable).values({ partyId: party.id, userId: createdBy });
+  // The creator and any free mutual close friends join immediately.
+  await db
+    .insert(partyMembersTable)
+    .values(
+      [createdBy, ...directIds].map((userId) => ({ partyId: party.id, userId })),
+    );
 
-  const inviteeIds = allMemberIds.filter((uid) => uid !== createdBy);
   if (inviteeIds.length > 0) {
     await db
       .insert(partyInvitationsTable)
@@ -256,6 +305,15 @@ router.post("/:partyId/join", requireAuth, async (req: Request, res: Response) =
 
   if (party.status === "completed") {
     res.status(400).json({ error: "This party is already completed" });
+    return;
+  }
+
+  // Joining by id requires proving knowledge of the party's join code (the
+  // same code the /lookup flow returns). This prevents enumerating party ids
+  // and injecting yourself into parties you were not invited to.
+  const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+  if (code !== party.code) {
+    res.status(403).json({ error: "Invalid party code" });
     return;
   }
 

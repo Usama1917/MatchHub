@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { ar } from 'date-fns/locale';
 import { Match } from '@workspace/api-client-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +18,7 @@ interface MatchCardProps {
 }
 
 export function MatchCard({ match, onClick, perspectiveUserId }: MatchCardProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [, setLocation] = useLocation();
 
   // Player names link to their profile without triggering the card's match link.
@@ -52,11 +53,11 @@ export function MatchCard({ match, onClick, perspectiveUserId }: MatchCardProps)
   const getStatusBadge = () => {
     switch (match.status) {
       case 'completed':
-        return <Badge variant="secondary" className="bg-primary/20 text-primary hover:bg-primary/30">Completed</Badge>;
+        return <Badge variant="secondary" className="bg-primary/20 text-primary hover:bg-primary/30">{t('match_completed')}</Badge>;
       case 'in_progress':
-        return <Badge variant="destructive" className="animate-pulse">Live</Badge>;
+        return <Badge variant="destructive" className="animate-pulse">{t('match_live')}</Badge>;
       default:
-        return <Badge variant="outline">Pending</Badge>;
+        return <Badge variant="outline">{t('match_pending')}</Badge>;
     }
   };
 
@@ -73,7 +74,7 @@ export function MatchCard({ match, onClick, perspectiveUserId }: MatchCardProps)
             {match.startedAt && (
               <span className="text-xs text-muted-foreground flex items-center">
                 <Clock className="w-3 h-3 mr-1 rtl:ml-1 rtl:mr-0" />
-                {format(new Date(match.startedAt), 'MMM d, HH:mm')}
+                {format(new Date(match.startedAt), 'MMM d, h:mm a', { locale: language === 'ar' ? ar : undefined })}
               </span>
             )}
           </div>

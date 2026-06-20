@@ -88,11 +88,24 @@ export const translations: Translations = {
   party_completed: { en: 'Completed', ar: 'منتهية' },
   matchesInParty: { en: 'Matches', ar: 'المباريات' },
   newMatch: { en: 'New Match', ar: 'ماتش جديد' },
-  rematch: { en: 'Rematch (same opponents)', ar: 'ماتش تاني بنفس الخصوم' },
+  rematch: { en: 'New match · same players', ar: 'ماتش جديد بنفس المتنافسين' },
+  newMatchDifferent: { en: 'New match · different players', ar: 'ماتش جديد بمتنافسين مختلفين' },
   startLater: { en: 'You can start a match later from the party page', ar: 'تقدر تبدأ ماتش بعدين من صفحة البارتي' },
   needMoreMembers: { en: 'You need at least one more player to start a match', ar: 'محتاج لاعب تاني على الأقل عشان تبدأ ماتش' },
   closeParty: { en: 'Close Party', ar: 'إغلاق البارتي' },
   partyClosed: { en: 'Party closed', ar: 'تم إغلاق البارتي' },
+  closePartyActiveMatchTitle: { en: 'A match is still in progress', ar: 'فيه ماتش لسه شغّال' },
+  closePartyActiveMatchDesc: {
+    en: 'Cancel the match or submit its result before closing the party.',
+    ar: 'لازم تلغي الماتش أو تسجّل نتيجته قبل ما تقفل البارتي.',
+  },
+  cancelMatch: { en: 'Cancel match', ar: 'إلغاء الماتش' },
+  matchCancelled: { en: 'Match cancelled', ar: 'تم إلغاء الماتش' },
+  cancelMatchTitle: { en: 'Cancel this match?', ar: 'إلغاء الماتش؟' },
+  cancelMatchDesc: {
+    en: 'The match will be permanently deleted. This cannot be undone.',
+    ar: 'هيتمسح الماتش نهائيًا ومش هتقدر تتراجع.',
+  },
   pendingInvites: { en: 'Pending', ar: 'في انتظار القبول' },
   myActiveParty: { en: 'Party you are in', ar: 'البارتي اللي أنت فيها' },
   noActiveParty: { en: 'You are not in an active party right now.', ar: 'أنت مش موجود في بارتي شغالة دلوقتي.' },
@@ -130,14 +143,41 @@ export const translations: Translations = {
   leftGroup: { en: 'Left the private rank', ar: 'خرجت من الرانك الخاص' },
   noGroups: { en: 'No private ranks yet. Create one!', ar: 'لسه مفيش رانكات خاصة. اعمل واحد!' },
   notRanked: { en: 'Unranked', ar: 'غير مصنّف' },
+  rankTab: { en: 'Rank', ar: 'الترتيب' },
+  matchHistoryTab: { en: 'Match History', ar: 'سجل المباريات' },
 
   // Follow
   follow: { en: 'Follow', ar: 'متابعة' },
   unfollow: { en: 'Unfollow', ar: 'إلغاء المتابعة' },
+
+  // Close friends
+  closeFriend: { en: 'Close Friend', ar: 'صديق مقرّب' },
+  closeFriendHint: {
+    en: 'Once you both add each other as close friends, this person joins your parties instantly — no invite to accept.',
+    ar: 'لما تكونوا ضايفين بعض كأصدقاء مقرّبين، الشخص ده بيتضاف لبارتيهاتك على طول من غير دعوة تتقبل.',
+  },
   followers: { en: 'Followers', ar: 'المتابِعون' },
   following: { en: 'Following', ar: 'يتابع' },
   noFollowers: { en: 'No followers yet', ar: 'لا يوجد متابِعون بعد' },
   noFollowing: { en: 'Not following anyone yet', ar: 'لا يتابع أحدًا بعد' },
+
+  // Generic toasts
+  error: { en: 'Error', ar: 'خطأ' },
+  failed: { en: 'Failed', ar: 'فشل' },
+  copyFailed: { en: 'Copy failed', ar: 'فشل النسخ' },
+
+  // Match status badges
+  match_completed: { en: 'Completed', ar: 'منتهية' },
+  match_live: { en: 'Live', ar: 'مباشر' },
+  match_pending: { en: 'Pending', ar: 'في الانتظار' },
+
+  // Not found page
+  pageNotFound: { en: 'Page Not Found', ar: 'الصفحة غير موجودة' },
+  pageNotFoundDesc: {
+    en: 'The page you are looking for does not exist.',
+    ar: 'الصفحة اللي بتدور عليها مش موجودة.',
+  },
+  backHome: { en: 'Back to Home', ar: 'العودة للرئيسية' },
 };
 
 interface LanguageContextType {
@@ -149,14 +189,16 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('en');
-
-  useEffect(() => {
-    const saved = localStorage.getItem('matchhub-lang') as Language;
-    if (saved === 'en' || saved === 'ar') {
-      setLanguageState(saved);
+  // Initialise from the saved preference synchronously so the first React render
+  // already matches the language the inline script in index.html applied to the
+  // <html> element — avoiding a flash of English/LTR before an effect runs.
+  const [language, setLanguageState] = useState<Language>(() => {
+    try {
+      return localStorage.getItem('matchhub-lang') === 'ar' ? 'ar' : 'en';
+    } catch {
+      return 'en';
     }
-  }, []);
+  });
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);

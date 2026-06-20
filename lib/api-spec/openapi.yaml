@@ -150,6 +150,21 @@ paths:
                 items:
                   $ref: "#/components/schemas/User"
 
+  /users/close-friends:
+    get:
+      operationId: listCloseFriends
+      tags: [users]
+      summary: List users the current user has marked as close friends
+      responses:
+        "200":
+          description: List of close-friend users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
   /users/{userId}:
     get:
       operationId: getUser
@@ -243,6 +258,54 @@ paths:
       responses:
         "200":
           description: Unfollowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /users/{userId}/close-friend:
+    post:
+      operationId: closeFriendUser
+      tags: [users]
+      summary: Mark a user as a close friend
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Close friend added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: uncloseFriendUser
+      tags: [users]
+      summary: Remove a user from close friends
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Close friend removed
           content:
             application/json:
               schema:
@@ -431,6 +494,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /groups/{groupId}/matches:
+    get:
+      operationId: getGroupMatches
+      tags: [groups]
+      summary: List the matches that count toward a private rank
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Matches in this private rank
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Match"
+        "403":
+          description: Not a member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /groups/{groupId}/leave:
     post:
       operationId: leaveGroup
@@ -584,6 +674,12 @@ paths:
           required: true
           schema:
             type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinPartyInput"
       responses:
         "200":
           description: Joined
@@ -591,6 +687,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Party"
+        "403":
+          description: Invalid party code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
           content:
@@ -771,6 +873,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Match"
+    delete:
+      operationId: cancelMatch
+      tags: [matches]
+      summary: Cancel (delete) a match that is not yet completed
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Cannot cancel a completed match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not the organizer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Match not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /matches/{matchId}/result:
     post:
@@ -1047,6 +1184,8 @@ components:
           type: integer
         isFollowing:
           type: boolean
+        isCloseFriend:
+          type: boolean
 
     UserStats:
       type: object
@@ -1295,6 +1434,13 @@ components:
             type: integer
 
     JoinGroupInput:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+
+    JoinPartyInput:
       type: object
       required: [code]
       properties:

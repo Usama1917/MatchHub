@@ -100,6 +100,7 @@ export interface UserProfile {
   followerCount?: number;
   followingCount?: number;
   isFollowing?: boolean;
+  isCloseFriend?: boolean;
 }
 
 export interface PartyInput {
@@ -303,6 +304,10 @@ export interface GroupInput {
 }
 
 export interface JoinGroupInput {
+  code: string;
+}
+
+export interface JoinPartyInput {
   code: string;
 }
 

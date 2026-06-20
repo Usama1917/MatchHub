@@ -14,7 +14,14 @@ export async function verifyPassword(
   stored: string,
 ): Promise<boolean> {
   const [hashed, salt] = stored.split(".");
+  // A malformed/legacy stored hash should fail verification cleanly rather than
+  // throw and surface as a 500.
+  if (!hashed || !salt) return false;
+
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  // timingSafeEqual throws if the buffers differ in length (e.g. corrupt hash).
+  if (hashedBuf.length !== suppliedBuf.length) return false;
+
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }

@@ -25,6 +25,11 @@ router.post("/register", async (req: Request, res: Response) => {
     res.status(400).json({ error: "Username can only contain letters, numbers, and underscores" });
     return;
   }
+  const trimmedDisplayName = String(displayName).trim();
+  if (trimmedDisplayName.length < 1 || trimmedDisplayName.length > 50) {
+    res.status(400).json({ error: "Display name must be 1-50 characters" });
+    return;
+  }
 
   const existing = await db
     .select()
@@ -39,15 +44,26 @@ router.post("/register", async (req: Request, res: Response) => {
 
   const passwordHash = await hashPassword(password);
 
-  const [user] = await db
-    .insert(usersTable)
-    .values({
-      username: username.toLowerCase(),
-      displayName,
-      passwordHash,
-      role: "user",
-    })
-    .returning();
+  let user;
+  try {
+    [user] = await db
+      .insert(usersTable)
+      .values({
+        username: username.toLowerCase(),
+        displayName: trimmedDisplayName,
+        passwordHash,
+        role: "user",
+      })
+      .returning();
+  } catch (err: any) {
+    // 23505 = unique_violation: another request registered the same username
+    // between the existence check above and this insert.
+    if (err?.code === "23505" || err?.cause?.code === "23505") {
+      res.status(400).json({ error: "Username already taken" });
+      return;
+    }
+    throw err;
+  }
 
   req.session.userId = user.id;
 

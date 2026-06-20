@@ -26,7 +26,9 @@ export function Header() {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
         toast({ title: t('logout') });
-        window.location.href = '/login';
+        // Full reload (clears all in-memory caches/auth state). Resolve against
+        // baseURI so a non-root BASE_URL deployment still lands on /login.
+        window.location.href = new URL('login', document.baseURI).href;
       },
     });
   };

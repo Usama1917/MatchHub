@@ -50,13 +50,13 @@ export default function Login() {
       { data: values },
       {
         onSuccess: () => {
-          window.location.href = '/';
+          window.location.href = new URL('.', document.baseURI).href;
         },
         onError: (error) => {
           toast({
             variant: 'destructive',
             title: 'Login failed',
-            description: (error as any)?.error || 'Please check your credentials and try again',
+            description: (error as any)?.data?.error || 'Please check your credentials and try again',
           });
         },
       }

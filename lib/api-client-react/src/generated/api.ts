@@ -31,6 +31,7 @@ import type {
   HealthStatus,
   Invitation,
   JoinGroupInput,
+  JoinPartyInput,
   ListMatchesParams,
   ListUsersParams,
   LoginInput,
@@ -587,6 +588,83 @@ export function useListFriends<TData = Awaited<ReturnType<typeof listFriends>>, 
 
 
 
+export const getListCloseFriendsUrl = () => {
+
+
+
+
+  return `/api/users/close-friends`
+}
+
+/**
+ * @summary List users the current user has marked as close friends
+ */
+export const listCloseFriends = async ( options?: RequestInit): Promise<User[]> => {
+
+  return customFetch<User[]>(getListCloseFriendsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCloseFriendsQueryKey = () => {
+    return [
+    `/api/users/close-friends`
+    ] as const;
+    }
+
+
+export const getListCloseFriendsQueryOptions = <TData = Awaited<ReturnType<typeof listCloseFriends>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCloseFriends>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCloseFriendsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCloseFriends>>> = ({ signal }) => listCloseFriends({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCloseFriends>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCloseFriendsQueryResult = NonNullable<Awaited<ReturnType<typeof listCloseFriends>>>
+export type ListCloseFriendsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List users the current user has marked as close friends
+ */
+
+export function useListCloseFriends<TData = Awaited<ReturnType<typeof listCloseFriends>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCloseFriends>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCloseFriendsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getGetUserUrl = (userId: number,) => {
 
 
@@ -891,6 +969,146 @@ export const useUnfollowUser = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getUnfollowUserMutationOptions(options));
+    }
+
+export const getCloseFriendUserUrl = (userId: number,) => {
+
+
+
+
+  return `/api/users/${userId}/close-friend`
+}
+
+/**
+ * @summary Mark a user as a close friend
+ */
+export const closeFriendUser = async (userId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getCloseFriendUserUrl(userId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCloseFriendUserMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeFriendUser>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeFriendUser>>, TError,{userId: number}, TContext> => {
+
+const mutationKey = ['closeFriendUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeFriendUser>>, {userId: number}> = (props) => {
+          const {userId} = props ?? {};
+
+          return  closeFriendUser(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseFriendUserMutationResult = NonNullable<Awaited<ReturnType<typeof closeFriendUser>>>
+
+    export type CloseFriendUserMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Mark a user as a close friend
+ */
+export const useCloseFriendUser = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeFriendUser>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof closeFriendUser>>,
+        TError,
+        {userId: number},
+        TContext
+      > => {
+      return useMutation(getCloseFriendUserMutationOptions(options));
+    }
+
+export const getUncloseFriendUserUrl = (userId: number,) => {
+
+
+
+
+  return `/api/users/${userId}/close-friend`
+}
+
+/**
+ * @summary Remove a user from close friends
+ */
+export const uncloseFriendUser = async (userId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getUncloseFriendUserUrl(userId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getUncloseFriendUserMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uncloseFriendUser>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uncloseFriendUser>>, TError,{userId: number}, TContext> => {
+
+const mutationKey = ['uncloseFriendUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uncloseFriendUser>>, {userId: number}> = (props) => {
+          const {userId} = props ?? {};
+
+          return  uncloseFriendUser(userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UncloseFriendUserMutationResult = NonNullable<Awaited<ReturnType<typeof uncloseFriendUser>>>
+
+    export type UncloseFriendUserMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Remove a user from close friends
+ */
+export const useUncloseFriendUser = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uncloseFriendUser>>, TError,{userId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uncloseFriendUser>>,
+        TError,
+        {userId: number},
+        TContext
+      > => {
+      return useMutation(getUncloseFriendUserMutationOptions(options));
     }
 
 export const getListFollowersUrl = (userId: number,) => {
@@ -1497,6 +1715,83 @@ export function useGetGroupRankings<TData = Awaited<ReturnType<typeof getGroupRa
 
 
 
+export const getGetGroupMatchesUrl = (groupId: number,) => {
+
+
+
+
+  return `/api/groups/${groupId}/matches`
+}
+
+/**
+ * @summary List the matches that count toward a private rank
+ */
+export const getGroupMatches = async (groupId: number, options?: RequestInit): Promise<Match[]> => {
+
+  return customFetch<Match[]>(getGetGroupMatchesUrl(groupId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGroupMatchesQueryKey = (groupId: number,) => {
+    return [
+    `/api/groups/${groupId}/matches`
+    ] as const;
+    }
+
+
+export const getGetGroupMatchesQueryOptions = <TData = Awaited<ReturnType<typeof getGroupMatches>>, TError = ErrorType<ErrorResponse>>(groupId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGroupMatches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGroupMatchesQueryKey(groupId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGroupMatches>>> = ({ signal }) => getGroupMatches(groupId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(groupId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGroupMatches>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGroupMatchesQueryResult = NonNullable<Awaited<ReturnType<typeof getGroupMatches>>>
+export type GetGroupMatchesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List the matches that count toward a private rank
+ */
+
+export function useGetGroupMatches<TData = Awaited<ReturnType<typeof getGroupMatches>>, TError = ErrorType<ErrorResponse>>(
+ groupId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGroupMatches>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGroupMatchesQueryOptions(groupId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getLeaveGroupUrl = (groupId: number,) => {
 
 
@@ -2034,14 +2329,16 @@ export const getJoinPartyUrl = (partyId: number,) => {
 /**
  * @summary Join a party by id
  */
-export const joinParty = async (partyId: number, options?: RequestInit): Promise<Party> => {
+export const joinParty = async (partyId: number,
+    joinPartyInput: JoinPartyInput, options?: RequestInit): Promise<Party> => {
 
   return customFetch<Party>(getJoinPartyUrl(partyId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      joinPartyInput,)
   }
 );}
 
@@ -2049,8 +2346,8 @@ export const joinParty = async (partyId: number, options?: RequestInit): Promise
 
 
 export const getJoinPartyMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinParty>>, TError,{partyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof joinParty>>, TError,{partyId: number}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinParty>>, TError,{partyId: number;data: BodyType<JoinPartyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof joinParty>>, TError,{partyId: number;data: BodyType<JoinPartyInput>}, TContext> => {
 
 const mutationKey = ['joinParty'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -2062,10 +2359,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof joinParty>>, {partyId: number}> = (props) => {
-          const {partyId} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof joinParty>>, {partyId: number;data: BodyType<JoinPartyInput>}> = (props) => {
+          const {partyId,data} = props ?? {};
 
-          return  joinParty(partyId,requestOptions)
+          return  joinParty(partyId,data,requestOptions)
         }
 
 
@@ -2076,18 +2373,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type JoinPartyMutationResult = NonNullable<Awaited<ReturnType<typeof joinParty>>>
-
+    export type JoinPartyMutationBody = BodyType<JoinPartyInput>
     export type JoinPartyMutationError = ErrorType<ErrorResponse>
 
     /**
  * @summary Join a party by id
  */
 export const useJoinParty = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinParty>>, TError,{partyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof joinParty>>, TError,{partyId: number;data: BodyType<JoinPartyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof joinParty>>,
         TError,
-        {partyId: number},
+        {partyId: number;data: BodyType<JoinPartyInput>},
         TContext
       > => {
       return useMutation(getJoinPartyMutationOptions(options));
@@ -2611,6 +2908,76 @@ export function useGetMatch<TData = Awaited<ReturnType<typeof getMatch>>, TError
 
 
 
+
+export const getCancelMatchUrl = (matchId: number,) => {
+
+
+
+
+  return `/api/matches/${matchId}`
+}
+
+/**
+ * @summary Cancel (delete) a match that is not yet completed
+ */
+export const cancelMatch = async (matchId: number, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getCancelMatchUrl(matchId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getCancelMatchMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelMatch>>, TError,{matchId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelMatch>>, TError,{matchId: number}, TContext> => {
+
+const mutationKey = ['cancelMatch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelMatch>>, {matchId: number}> = (props) => {
+          const {matchId} = props ?? {};
+
+          return  cancelMatch(matchId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelMatchMutationResult = NonNullable<Awaited<ReturnType<typeof cancelMatch>>>
+
+    export type CancelMatchMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Cancel (delete) a match that is not yet completed
+ */
+export const useCancelMatch = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelMatch>>, TError,{matchId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelMatch>>,
+        TError,
+        {matchId: number},
+        TContext
+      > => {
+      return useMutation(getCancelMatchMutationOptions(options));
+    }
 
 export const getSubmitMatchResultUrl = (matchId: number,) => {
 

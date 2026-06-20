@@ -65,6 +65,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+const cookieSecure = process.env.COOKIE_SECURE === "true";
+const cookieSameSite = process.env.COOKIE_SAME_SITE === "none" ? "none" : "lax";
+
+// Browsers silently drop SameSite=None cookies that are not also Secure, which
+// would make every login appear to succeed then immediately log out. Fail loudly
+// at startup instead of shipping a silently-broken session.
+if (cookieSameSite === "none" && !cookieSecure) {
+  throw new Error("COOKIE_SAME_SITE=none requires COOKIE_SECURE=true");
+}
+
 app.use(
   session({
     store: new PgSession({
@@ -76,9 +86,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.COOKIE_SECURE === "true",
+      secure: cookieSecure,
       httpOnly: true,
-      sameSite: process.env.COOKIE_SAME_SITE === "none" ? "none" : "lax",
+      sameSite: cookieSameSite,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
   }),
@@ -95,14 +105,18 @@ app.use(
   ) => {
     const cause = err instanceof Error ? err.cause : undefined;
     req.log.error({ err, cause }, "Unhandled API error");
+    const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
-      error: err instanceof Error ? err.message : "Internal server error",
-      cause:
-        process.env.NODE_ENV === "production"
-          ? undefined
-          : cause instanceof Error
-            ? cause.message
-            : cause,
+      error: isProduction
+        ? "Internal server error"
+        : err instanceof Error
+          ? err.message
+          : "Internal server error",
+      cause: isProduction
+        ? undefined
+        : cause instanceof Error
+          ? cause.message
+          : cause,
     });
   },
 );

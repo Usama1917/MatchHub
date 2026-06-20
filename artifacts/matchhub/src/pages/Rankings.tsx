@@ -6,15 +6,18 @@ import {
   useCreateGroup,
   useJoinGroup,
   useGetGroupRankings,
+  useGetGroupMatches,
   useLeaveGroup,
   useEndGroup,
   useListFriends,
   useListUsers,
   User,
+  Group,
 } from '@workspace/api-client-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { RankingTable } from '@/components/RankingTable';
+import { MatchCard } from '@/components/MatchCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,7 +46,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Trophy, Plus, Search, Check, X, LogOut, Users, Info, Copy, KeyRound, XCircle, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, copyToClipboard } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -111,7 +114,13 @@ function PrivateRanks() {
   const leaveMut = useLeaveGroup();
   const endMut = useEndGroup();
 
-  const activeId = selectedId ?? groups?.[0]?.id ?? null;
+  // Validate the persisted selection against the live list: if the selected
+  // group was left/ended/removed, fall back to the first available group so the
+  // panel never dangles on a dead id (which would also fire 403 rankings calls).
+  const activeId =
+    selectedId != null && groups?.some((g) => g.id === selectedId)
+      ? selectedId
+      : groups?.[0]?.id ?? null;
   const {
     data: rankings,
     error: rankingsError,
@@ -123,6 +132,13 @@ function PrivateRanks() {
     query: { enabled: activeId !== null, queryKey: ['groupRankings', activeId], retry: false },
     request: { timeoutMs: 12_000 },
   });
+  const { data: groupMatches, isLoading: loadingGroupMatches } = useGetGroupMatches(
+    activeId ?? 0,
+    {
+      query: { enabled: activeId !== null, queryKey: ['groupMatches', activeId], retry: false },
+      request: { timeoutMs: 12_000 },
+    },
+  );
   const activeGroup = groups?.find((g) => g.id === activeId);
   const isCreator = activeGroup?.createdBy === currentUser?.id;
 
@@ -131,9 +147,10 @@ function PrivateRanks() {
       await leaveMut.mutateAsync({ groupId: id });
       setSelectedId(null);
       queryClient.invalidateQueries({ queryKey: ['myGroups'] });
+      queryClient.removeQueries({ queryKey: ['groupRankings', id] });
       toast({ title: t('leftGroup') });
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed' });
+      toast({ variant: 'destructive', title: t('error'), description: e?.data?.error || e?.error || t('failed') });
     }
   };
 
@@ -145,7 +162,7 @@ function PrivateRanks() {
       queryClient.invalidateQueries({ queryKey: ['groupRankings', id] });
       toast({ title: t('privateRankEnded') });
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed' });
+      toast({ variant: 'destructive', title: t('error'), description: e?.data?.error || e?.error || t('failed') });
     }
   };
 
@@ -245,25 +262,51 @@ function PrivateRanks() {
                 )}
               </div>
 
-              {hasRankingsError ? (
-                <PrivateRankErrorState
-                  title={t('privateRankingsLoadError')}
-                  description={getApiErrorMessage(rankingsError, t('privateRankingsLoadError'))}
-                  isRetrying={isFetchingRankings}
-                  onRetry={() => refetchRankings()}
-                />
-              ) : (
-                <>
-                  <section className="space-y-3">
-                    <h2 className="text-xl font-bold tracking-tight">{t('pes')}</h2>
-                    <RankingTable data={rankings?.pes || []} isLoading={loadingRankings} />
-                  </section>
-                  <section className="space-y-3">
-                    <h2 className="text-xl font-bold tracking-tight">{t('fifa')}</h2>
-                    <RankingTable data={rankings?.fifa || []} isLoading={loadingRankings} />
-                  </section>
-                </>
-              )}
+              <Tabs defaultValue="rank" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 max-w-sm bg-muted/50 p-1">
+                  <TabsTrigger value="rank" className="font-bold data-[state=active]:bg-background data-[state=active]:text-primary">{t('rankTab')}</TabsTrigger>
+                  <TabsTrigger value="history" className="font-bold data-[state=active]:bg-background data-[state=active]:text-primary">{t('matchHistoryTab')}</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="rank" className="mt-6 focus-visible:outline-none">
+                  {hasRankingsError ? (
+                    <PrivateRankErrorState
+                      title={t('privateRankingsLoadError')}
+                      description={getApiErrorMessage(rankingsError, t('privateRankingsLoadError'))}
+                      isRetrying={isFetchingRankings}
+                      onRetry={() => refetchRankings()}
+                    />
+                  ) : (
+                    <div className={cn('space-y-8', isFetchingRankings && !loadingRankings && 'opacity-60 transition-opacity')}>
+                      <section className="space-y-3">
+                        <h2 className="text-xl font-bold tracking-tight">{t('pes')}</h2>
+                        <RankingTable data={rankings?.pes || []} isLoading={loadingRankings} />
+                      </section>
+                      <section className="space-y-3">
+                        <h2 className="text-xl font-bold tracking-tight">{t('fifa')}</h2>
+                        <RankingTable data={rankings?.fifa || []} isLoading={loadingRankings} />
+                      </section>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="history" className="mt-6 focus-visible:outline-none">
+                  {loadingGroupMatches ? (
+                    <div className="flex justify-center p-8"><Spinner /></div>
+                  ) : groupMatches && groupMatches.length > 0 ? (
+                    <div className="space-y-4">
+                      {groupMatches.map((m) => (
+                        <MatchCard key={m.id} match={m} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-12 text-center bg-card rounded-lg border border-border/50">
+                      <Trophy className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                      <p className="text-muted-foreground">{t('emptyState')}</p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
           )}
         </>
@@ -272,9 +315,16 @@ function PrivateRanks() {
       <CreateGroupDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onCreated={(id) => {
+        onCreated={(group) => {
+          // Seed the cache synchronously so the new group's chip, member count,
+          // and (for the creator) the share code render immediately instead of
+          // blanking until the async refetch lands.
+          queryClient.setQueryData<Group[]>(['myGroups'], (prev) => [
+            group,
+            ...(prev ?? []).filter((g) => g.id !== group.id),
+          ]);
+          setSelectedId(group.id);
           queryClient.invalidateQueries({ queryKey: ['myGroups'] });
-          setSelectedId(id);
           setCreateOpen(false);
         }}
       />
@@ -282,9 +332,13 @@ function PrivateRanks() {
       <JoinGroupDialog
         open={joinOpen}
         onOpenChange={setJoinOpen}
-        onJoined={(id) => {
+        onJoined={(group) => {
+          queryClient.setQueryData<Group[]>(['myGroups'], (prev) => [
+            group,
+            ...(prev ?? []).filter((g) => g.id !== group.id),
+          ]);
+          setSelectedId(group.id);
           queryClient.invalidateQueries({ queryKey: ['myGroups'] });
-          setSelectedId(id);
           setJoinOpen(false);
         }}
       />
@@ -331,13 +385,13 @@ function PrivateRankCodeInfo({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
 
   const copyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
+    const ok = await copyToClipboard(code);
+    if (ok) {
       setCopied(true);
       toast({ title: t('copied') });
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({ variant: 'destructive', title: 'Error', description: 'Copy failed' });
+    } else {
+      toast({ variant: 'destructive', title: t('error'), description: t('copyFailed') });
     }
   };
 
@@ -373,7 +427,7 @@ function JoinGroupDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onJoined: (groupId: number) => void;
+  onJoined: (group: Group) => void;
 }) {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -385,11 +439,11 @@ function JoinGroupDialog({
       const group = await joinMut.mutateAsync({ data: { code: code.trim() } });
       setCode('');
       toast({ title: t('joinedPrivateRank') });
-      onJoined(group.id);
+      onJoined(group);
     } catch (e: any) {
       toast({
         variant: 'destructive',
-        title: 'Error',
+        title: t('error'),
         description: e?.data?.error || e?.error || t('privateRankNotFound'),
       });
     }
@@ -428,7 +482,7 @@ function CreateGroupDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: (groupId: number) => void;
+  onCreated: (group: Group) => void;
 }) {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -438,7 +492,7 @@ function CreateGroupDialog({
 
   const searchTerm = search.trim();
   const { data: friends } = useListFriends();
-  const { data: results } = useListUsers(
+  const { data: results, isFetching: isFetchingUsers } = useListUsers(
     { search: searchTerm },
     { query: { enabled: searchTerm.length > 0, queryKey: ['users', searchTerm] } },
   );
@@ -459,9 +513,9 @@ function CreateGroupDialog({
       setName('');
       setSelected([]);
       setSearch('');
-      onCreated(group.id);
+      onCreated(group);
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed' });
+      toast({ variant: 'destructive', title: t('error'), description: e?.data?.error || e?.error || t('failed') });
     }
   };
 
@@ -523,6 +577,10 @@ function CreateGroupDialog({
                   </div>
                 );
               })
+            ) : searchTerm && isFetchingUsers ? (
+              <div className="flex h-full items-center justify-center">
+                <Spinner />
+              </div>
             ) : (
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 {searchTerm ? t('noUsers') : t('noFriendsYet')}

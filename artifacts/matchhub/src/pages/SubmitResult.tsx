@@ -43,12 +43,16 @@ export default function SubmitResult() {
     }
   }, [scoreA, scoreB, winType]);
 
+  // Redirect away from an already-completed match in an effect (never during render).
+  useEffect(() => {
+    if (match?.status === 'completed') {
+      setLocation(`/matches/${match.id}`);
+    }
+  }, [match?.status, match?.id, setLocation]);
+
   if (isLoading) return <div className="flex h-screen items-center justify-center"><Spinner size="lg" /></div>;
   if (!match) return <div>Not found</div>;
-  if (match.status === 'completed') {
-    setLocation(`/matches/${match.id}`);
-    return null;
-  }
+  if (match.status === 'completed') return null;
 
   const teamA = match.players.filter(p => p.team === 'team_a');
   const teamB = match.players.filter(p => p.team === 'team_b');
@@ -72,13 +76,20 @@ export default function SubmitResult() {
         }
       });
       
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
+      // Refresh every view derived from match results across the app.
+      queryClient.invalidateQueries({ queryKey: ['/api/stats/dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['/api/matches'] });
-      
+      queryClient.invalidateQueries({ queryKey: ['match', id] });
+      queryClient.invalidateQueries({ queryKey: ['matches'] });
+      queryClient.invalidateQueries({ queryKey: ['userMatches'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: ['activeParty'] });
+      queryClient.invalidateQueries({ queryKey: ['party', match.partyId] });
+
       toast({ title: 'Result submitted successfully!' });
       setLocation(`/matches/${match.id}`);
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.error || 'Failed to submit' });
+      toast({ variant: 'destructive', title: t('error'), description: error?.data?.error || error?.error || 'Failed to submit' });
     }
   };
 
@@ -133,17 +144,19 @@ export default function SubmitResult() {
           <div className="space-y-3">
             <label className="text-sm font-medium">{t('winner')}</label>
             <div className="grid grid-cols-2 gap-4">
-              <Button 
+              <Button
                 variant={winner === 'team_a' ? 'default' : 'outline'}
                 className={cn("h-14 font-bold", winner === 'team_a' && "bg-primary text-primary-foreground hover:bg-primary/90")}
                 onClick={() => setWinner('team_a')}
+                disabled={scoreB > scoreA}
               >
                 {t('teamA')}
               </Button>
-              <Button 
+              <Button
                 variant={winner === 'team_b' ? 'default' : 'outline'}
                 className={cn("h-14 font-bold", winner === 'team_b' && "bg-destructive text-destructive-foreground hover:bg-destructive/90")}
                 onClick={() => setWinner('team_b')}
+                disabled={scoreA > scoreB}
               >
                 {t('teamB')}
               </Button>

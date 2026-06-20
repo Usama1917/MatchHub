@@ -5,6 +5,7 @@ import {
   timestamp,
   pgEnum,
   integer,
+  index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -40,6 +41,7 @@ export const partyMembersTable = pgTable("party_members", {
     table.partyId,
     table.userId,
   ),
+  userIdIdx: index("party_members_user_id").on(table.userId),
 }));
 
 export const insertPartySchema = createInsertSchema(partiesTable).omit({

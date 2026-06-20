@@ -7,10 +7,10 @@ import {
   matchesTable,
   usersTable,
 } from "@workspace/db";
-import { eq, and, inArray, desc, count } from "drizzle-orm";
+import { eq, and, inArray, desc, count, gte } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { parseIdParam } from "../lib/http";
-import { deriveMatchPlayerStats } from "./matchHelpers";
+import { deriveMatchPlayerStats, buildMatchesWithPlayers } from "./matchHelpers";
 import { generatePartyCode } from "../lib/partyCode";
 
 const router = Router();
@@ -71,11 +71,15 @@ async function buildGroupResponse(group: any, viewerId?: number) {
   return response;
 }
 
-async function insertGroupWithUniqueCode(name: string, createdBy: number) {
+async function insertGroupWithUniqueCode(
+  name: string,
+  createdBy: number,
+  executor: any = db,
+) {
   for (let attempt = 0; attempt < 6; attempt++) {
     const code = generatePartyCode();
     try {
-      const [group] = await db
+      const [group] = await executor
         .insert(rankGroupsTable)
         .values({ name, createdBy, code, status: "active" })
         .returning();
@@ -90,9 +94,12 @@ async function insertGroupWithUniqueCode(name: string, createdBy: number) {
 
 // A completed match counts toward a group only when at least 2 of its active
 // players are group members. Only member players' stats are aggregated.
+// `since` restricts to matches played from the group's creation onward, so a
+// private rank starts scoring from scratch (not the players' whole history).
 export async function computeGroupRankings(
   memberIds: number[],
   game?: "fifa" | "pes",
+  since?: Date,
 ) {
   if (memberIds.length === 0) return [];
 
@@ -102,6 +109,7 @@ export async function computeGroupRankings(
     inArray(matchPlayersTable.userId, memberIds),
   ];
   if (game) conditions.push(eq(matchesTable.game, game));
+  if (since) conditions.push(gte(matchesTable.createdAt, since));
 
   const rows = await db
     .select({
@@ -233,11 +241,15 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
-  const group = await insertGroupWithUniqueCode(name.trim(), createdBy);
-
-  await db
-    .insert(rankGroupMembersTable)
-    .values(allMemberIds.map((uid) => ({ groupId: group.id, userId: uid })));
+  // Create the group and seed its members atomically so a failed member insert
+  // cannot leave behind an orphaned, member-less zombie group.
+  const group = await db.transaction(async (tx) => {
+    const created = await insertGroupWithUniqueCode(name.trim(), createdBy, tx);
+    await tx
+      .insert(rankGroupMembersTable)
+      .values(allMemberIds.map((uid) => ({ groupId: created.id, userId: uid })));
+    return created;
+  });
 
   res.status(201).json(await buildGroupResponse(group, createdBy));
 });
@@ -320,7 +332,7 @@ router.get("/:groupId/rankings", requireAuth, async (req: Request, res: Response
   }
 
   const [group] = await db
-    .select({ id: rankGroupsTable.id })
+    .select({ id: rankGroupsTable.id, createdAt: rankGroupsTable.createdAt })
     .from(rankGroupsTable)
     .where(
       and(
@@ -337,11 +349,75 @@ router.get("/:groupId/rankings", requireAuth, async (req: Request, res: Response
 
   const memberIds = await getGroupMemberIds(groupId);
   const [fifa, pes] = await Promise.all([
-    computeGroupRankings(memberIds, "fifa"),
-    computeGroupRankings(memberIds, "pes"),
+    computeGroupRankings(memberIds, "fifa", group.createdAt),
+    computeGroupRankings(memberIds, "pes", group.createdAt),
   ]);
 
   res.json({ fifa, pes });
+});
+
+// All matches that count toward this private rank: completed matches in which
+// at least 2 of the group's members were active (non-spectator) players.
+router.get("/:groupId/matches", requireAuth, async (req: Request, res: Response) => {
+  const groupId = parseIdParam(req.params.groupId);
+  if (!groupId) {
+    res.status(400).json({ error: "Invalid group ID" });
+    return;
+  }
+
+  const userId = req.session.userId!;
+  if (!(await isMember(groupId, userId))) {
+    res.status(403).json({ error: "You are not a member of this private rank" });
+    return;
+  }
+
+  const [group] = await db
+    .select({ createdAt: rankGroupsTable.createdAt })
+    .from(rankGroupsTable)
+    .where(eq(rankGroupsTable.id, groupId))
+    .limit(1);
+  if (!group) {
+    res.status(404).json({ error: "Group not found" });
+    return;
+  }
+
+  const memberIds = await getGroupMemberIds(groupId);
+  if (memberIds.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const rows = await db
+    .select({ matchId: matchPlayersTable.matchId })
+    .from(matchPlayersTable)
+    .innerJoin(matchesTable, eq(matchPlayersTable.matchId, matchesTable.id))
+    .where(
+      and(
+        eq(matchPlayersTable.isSpectator, 0),
+        eq(matchesTable.status, "completed"),
+        inArray(matchPlayersTable.userId, memberIds),
+        gte(matchesTable.createdAt, group.createdAt),
+      ),
+    );
+
+  const memberCountPerMatch = new Map<number, number>();
+  for (const r of rows) {
+    memberCountPerMatch.set(
+      r.matchId,
+      (memberCountPerMatch.get(r.matchId) ?? 0) + 1,
+    );
+  }
+  const matchIds = Array.from(memberCountPerMatch.entries())
+    .filter(([, c]) => c >= 2)
+    .map(([matchId]) => matchId);
+
+  if (matchIds.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const matches = await buildMatchesWithPlayers({ matchIds });
+  res.json(matches);
 });
 
 router.post("/:groupId/leave", requireAuth, async (req: Request, res: Response) => {
@@ -353,24 +429,47 @@ router.post("/:groupId/leave", requireAuth, async (req: Request, res: Response) 
 
   const userId = req.session.userId!;
 
-  await db
-    .delete(rankGroupMembersTable)
-    .where(
-      and(
-        eq(rankGroupMembersTable.groupId, groupId),
-        eq(rankGroupMembersTable.userId, userId),
-      ),
-    );
+  const [group] = await db
+    .select()
+    .from(rankGroupsTable)
+    .where(eq(rankGroupsTable.id, groupId))
+    .limit(1);
 
-  // Delete the group if it has no members left.
-  const [{ remaining }] = await db
-    .select({ remaining: count() })
-    .from(rankGroupMembersTable)
-    .where(eq(rankGroupMembersTable.groupId, groupId));
-
-  if (remaining === 0) {
-    await db.delete(rankGroupsTable).where(eq(rankGroupsTable.id, groupId));
+  if (!group) {
+    res.status(404).json({ error: "Group not found" });
+    return;
   }
+
+  if (!(await isMember(groupId, userId))) {
+    res
+      .status(403)
+      .json({ error: "You are not a member of this private rank" });
+    return;
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(rankGroupMembersTable)
+      .where(
+        and(
+          eq(rankGroupMembersTable.groupId, groupId),
+          eq(rankGroupMembersTable.userId, userId),
+        ),
+      );
+
+    // Auto-delete only an *active* group once it becomes empty. Ended groups
+    // are inert finished records and are left intact.
+    if (group.status === "active") {
+      const [{ remaining }] = await tx
+        .select({ remaining: count() })
+        .from(rankGroupMembersTable)
+        .where(eq(rankGroupMembersTable.groupId, groupId));
+
+      if (remaining === 0) {
+        await tx.delete(rankGroupsTable).where(eq(rankGroupsTable.id, groupId));
+      }
+    }
+  });
 
   res.json({ success: true, message: "Left the private rank" });
 });
@@ -396,6 +495,13 @@ router.post("/:groupId/end", requireAuth, async (req: Request, res: Response) =>
 
   if (group.createdBy !== userId) {
     res.status(403).json({ error: "Only the private rank creator can end it" });
+    return;
+  }
+
+  // Only an active rank can be ended; re-ending would overwrite the original
+  // endedAt timestamp.
+  if (group.status !== "active") {
+    res.status(400).json({ error: "Private rank is not active" });
     return;
   }
 

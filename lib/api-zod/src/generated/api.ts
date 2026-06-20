@@ -105,6 +105,19 @@ export const ListFriendsResponse = zod.array(ListFriendsResponseItem)
 
 
 /**
+ * @summary List users the current user has marked as close friends
+ */
+export const ListCloseFriendsResponseItem = zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+})
+export const ListCloseFriendsResponse = zod.array(ListCloseFriendsResponseItem)
+
+
+/**
  * @summary Get user profile
  */
 export const GetUserParams = zod.object({
@@ -149,7 +162,8 @@ export const GetUserResponse = zod.object({
 }),
   "followerCount": zod.number().optional(),
   "followingCount": zod.number().optional(),
-  "isFollowing": zod.boolean().optional()
+  "isFollowing": zod.boolean().optional(),
+  "isCloseFriend": zod.boolean().optional()
 })
 
 
@@ -229,6 +243,32 @@ export const UnfollowUserParams = zod.object({
 })
 
 export const UnfollowUserResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Mark a user as a close friend
+ */
+export const CloseFriendUserParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const CloseFriendUserResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Remove a user from close friends
+ */
+export const UncloseFriendUserParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const UncloseFriendUserResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.string().optional()
 })
@@ -402,6 +442,56 @@ export const GetGroupRankingsResponse = zod.object({
   "winRate": zod.number()
 }))
 })
+
+
+/**
+ * @summary List the matches that count toward a private rank
+ */
+export const GetGroupMatchesParams = zod.object({
+  "groupId": zod.coerce.number()
+})
+
+export const GetGroupMatchesResponseItem = zod.object({
+  "id": zod.number(),
+  "partyId": zod.number(),
+  "game": zod.enum(['fifa', 'pes']),
+  "matchFormat": zod.enum(['1v1', '2v2', '3v3']),
+  "teamAScore": zod.number().nullish(),
+  "teamBScore": zod.number().nullish(),
+  "winnerTeam": zod.string().nullish(),
+  "winType": zod.string().nullish(),
+  "status": zod.enum(['pending', 'in_progress', 'completed']),
+  "createdBy": zod.number(),
+  "startedAt": zod.string().nullish(),
+  "finishedAt": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "players": zod.array(zod.object({
+  "id": zod.number(),
+  "matchId": zod.number(),
+  "userId": zod.number(),
+  "team": zod.union([zod.literal('team_a'),zod.literal('team_b'),zod.literal(null)]).nullable(),
+  "isSpectator": zod.boolean(),
+  "result": zod.union([zod.literal('win'),zod.literal('loss'),zod.literal(null)]).nullish(),
+  "points": zod.number(),
+  "goalsFor": zod.number(),
+  "goalsAgainst": zod.number(),
+  "user": zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+}).optional()
+})),
+  "creator": zod.object({
+  "id": zod.number(),
+  "username": zod.string(),
+  "displayName": zod.string(),
+  "role": zod.enum(['user', 'admin']),
+  "createdAt": zod.coerce.date()
+}).optional()
+})
+export const GetGroupMatchesResponse = zod.array(GetGroupMatchesResponseItem)
 
 
 /**
@@ -584,6 +674,10 @@ export const GetPartyResponse = zod.object({
  */
 export const JoinPartyParams = zod.object({
   "partyId": zod.coerce.number()
+})
+
+export const JoinPartyBody = zod.object({
+  "code": zod.string()
 })
 
 export const JoinPartyResponse = zod.object({
@@ -811,6 +905,19 @@ export const GetMatchResponse = zod.object({
   "role": zod.enum(['user', 'admin']),
   "createdAt": zod.coerce.date()
 }).optional()
+})
+
+
+/**
+ * @summary Cancel (delete) a match that is not yet completed
+ */
+export const CancelMatchParams = zod.object({
+  "matchId": zod.coerce.number()
+})
+
+export const CancelMatchResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string().optional()
 })
 
 

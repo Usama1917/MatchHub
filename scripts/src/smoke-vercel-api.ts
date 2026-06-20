@@ -57,7 +57,16 @@ const handler = require("../../api/index.js") as VercelHandler;
 
 const server = http.createServer((req, res) => {
   const vercelReq = req as VercelRequest;
-  addQueryToRequest(vercelReq);
+
+  // Simulate the real production routing shape: Vercel rewrites /api/:path* to
+  // the bare destination "/api" and carries the original path on req.query.path.
+  // This is the case the plain /?path= test cannot reproduce.
+  if (req.url === "/__vercel_dest/health") {
+    vercelReq.url = "/api";
+    vercelReq.query = { path: ["health"] };
+  } else {
+    addQueryToRequest(vercelReq);
+  }
 
   void Promise.resolve(handler(vercelReq, res)).catch((err: unknown) => {
     console.error(err);
@@ -97,6 +106,16 @@ try {
   if (catchAllHealth.status !== 200) {
     throw new Error(
       `GET /?path=health expected 200, received ${catchAllHealth.status}: ${catchAllHealthBody}`,
+    );
+  }
+
+  // Production-shaped routing: req.url === "/api" with the path on req.query.path.
+  const destHealth = await fetch(`${baseUrl}/__vercel_dest/health`);
+  const destHealthBody = await destHealth.text();
+
+  if (destHealth.status !== 200) {
+    throw new Error(
+      `destination-only /api (query.path=health) expected 200, received ${destHealth.status}: ${destHealthBody}`,
     );
   }
 

@@ -118,7 +118,7 @@ pnpm run smoke:vercel-api
 
 ## Vercel + Supabase Hosting
 
-MatchHub is configured for a single Vercel project. Vercel serves the Vite frontend from `artifacts/matchhub/dist/public` and runs the Express API through serverless functions in `api/*`. Keep the database on Supabase PostgreSQL through `DATABASE_URL`.
+MatchHub is configured for a single Vercel project. Vercel serves the Vite frontend from the repo-root `public/` directory (the matchhub build copies `dist/public` into `/public`) and runs the Express API through serverless functions in `api/*`. Keep the database on Supabase PostgreSQL through `DATABASE_URL`. These build settings already live in `vercel.json` — leave the Vercel dashboard build fields blank so `vercel.json` stays the single source of truth.
 
 Create one Vercel project with these settings:
 
@@ -128,7 +128,7 @@ Create one Vercel project with these settings:
 | Framework Preset | `Other` |
 | Install Command | `pnpm install --frozen-lockfile` |
 | Build Command | `pnpm run typecheck && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/matchhub run build` |
-| Output Directory | `artifacts/matchhub/dist/public` |
+| Output Directory | `public` |
 
 Required Vercel environment variables:
 

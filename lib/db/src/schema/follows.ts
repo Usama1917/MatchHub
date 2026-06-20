@@ -3,6 +3,7 @@ import {
   serial,
   timestamp,
   integer,
+  index,
   uniqueIndex,
   check,
 } from "drizzle-orm/pg-core";
@@ -23,6 +24,7 @@ export const followsTable = pgTable("follows", {
     table.followerId,
     table.followingId,
   ),
+  followingIdx: index("follows_following_id").on(table.followingId),
   noSelf: check(
     "follows_no_self",
     sql`${table.followerId} <> ${table.followingId}`,

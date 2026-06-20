@@ -6,6 +6,7 @@ import {
   partiesTable,
   matchPlayersTable,
   partyMembersTable,
+  rankGroupsTable,
 } from "@workspace/db";
 import { eq, count } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
@@ -177,17 +178,24 @@ router.delete("/users/:userId", requireAuth, async (req: Request, res: Response)
     .select({ count: count() })
     .from(partyMembersTable)
     .where(eq(partyMembersTable.userId, userId));
+  // rank_groups.created_by uses ON DELETE RESTRICT, so a created private rank
+  // would make the delete throw a raw FK violation (500) instead of a clean 409.
+  const [createdRankGroups] = await db
+    .select({ count: count() })
+    .from(rankGroupsTable)
+    .where(eq(rankGroupsTable.createdBy, userId));
 
   const hasActivity =
     createdMatches.count > 0 ||
     matchPlayers.count > 0 ||
     createdParties.count > 0 ||
-    partyMembers.count > 0;
+    partyMembers.count > 0 ||
+    createdRankGroups.count > 0;
 
   if (hasActivity) {
     res.status(409).json({
       error:
-        "Cannot delete users with parties or match history. Demote them instead.",
+        "Cannot delete users with parties, match history, or private rank groups. Demote them instead.",
     });
     return;
   }

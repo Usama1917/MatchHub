@@ -56,13 +56,13 @@ export default function Register() {
             title: 'Registration successful',
             description: 'Welcome to MatchHub!',
           });
-          window.location.href = '/';
+          window.location.href = new URL('.', document.baseURI).href;
         },
         onError: (error) => {
           toast({
             variant: 'destructive',
             title: 'Registration failed',
-            description: (error as any)?.error || 'Username might already be taken',
+            description: (error as any)?.data?.error || 'Username might already be taken',
           });
         },
       }

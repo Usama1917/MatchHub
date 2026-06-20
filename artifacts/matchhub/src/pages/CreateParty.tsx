@@ -17,8 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search, Check, X, Users, Copy, Share2, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Search, Check, X, Users, Copy, Share2, ChevronRight, Clock } from 'lucide-react';
+import { cn, copyToClipboard } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Spinner } from '@/components/ui/spinner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -88,24 +88,24 @@ export default function CreateParty() {
   const handleJoin = async () => {
     if (!foundParty) return;
     try {
-      const party = await joinMut.mutateAsync({ partyId: foundParty.id });
+      const party = await joinMut.mutateAsync({ partyId: foundParty.id, data: { code: trimmedCode } });
       queryClient.setQueryData(['activeParty'], party);
       toast({ title: t('joined') });
       setLocation(`/parties/${foundParty.id}`);
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed to join' });
+      toast({ variant: 'destructive', title: t('error'), description: e?.data?.error || e?.error || 'Failed to join' });
     }
   };
 
   const handleCopy = async () => {
     if (!createdParty) return;
-    try {
-      await navigator.clipboard.writeText(createdParty.code);
+    const ok = await copyToClipboard(createdParty.code);
+    if (ok) {
       setCopied(true);
       toast({ title: t('copied') });
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({ variant: 'destructive', title: 'Error', description: 'Copy failed' });
+    } else {
+      toast({ variant: 'destructive', title: t('error'), description: t('copyFailed') });
     }
   };
 
@@ -160,6 +160,37 @@ export default function CreateParty() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Who's in: close friends join immediately; everyone else is pending. */}
+        {createdParty.members && createdParty.members.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="font-semibold">{t('members')} ({createdParty.members.length})</h2>
+            <div className="flex flex-wrap gap-2">
+              {createdParty.members.map((u) => (
+                <Badge key={u.id} variant="secondary" className="flex items-center gap-1 pl-1 py-1">
+                  <Avatar className="h-5 w-5">
+                    <AvatarFallback className="text-[10px]">{u.displayName.substring(0, 2)}</AvatarFallback>
+                  </Avatar>
+                  {u.displayName}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {createdParty.pendingInvites && createdParty.pendingInvites.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="font-semibold text-muted-foreground">{t('pendingInvites')} ({createdParty.pendingInvites.length})</h2>
+            <div className="flex flex-wrap gap-2">
+              {createdParty.pendingInvites.map((u) => (
+                <Badge key={u.id} variant="outline" className="flex items-center gap-1 py-1 opacity-70">
+                  <Clock className="h-3 w-3" />
+                  {u.displayName}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end">
           <Button size="lg" className="font-bold" onClick={() => setLocation(`/parties/${createdParty.id}`)}>

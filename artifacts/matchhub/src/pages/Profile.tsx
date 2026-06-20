@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import {
   useGetUser,
   useGetUserMatches,
   useFollowUser,
   useUnfollowUser,
+  useCloseFriendUser,
+  useUncloseFriendUser,
   useListFollowers,
   useListFollowing,
   useListUserGroups,
@@ -24,21 +26,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Trophy, Activity, Target, UserPlus, UserMinus } from 'lucide-react';
+import { Trophy, Activity, Target, UserPlus, UserMinus, Heart } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+
+// Format a goal difference with an explicit + sign for positive values.
+const fmtGD = (n: number) => (n > 0 ? `+${n}` : `${n}`);
 
 export default function Profile() {
   const { userId } = useParams();
   const [, setLocation] = useLocation();
   const { user: currentUser } = useAuth();
   const { t } = useLanguage();
-  
+
   // If no userId, use currentUser's ID
   const idToLoad = userId ? parseInt(userId, 10) : currentUser?.id;
-  
-  if (!userId && !currentUser) {
-    setLocation('/login');
-  }
+
+  // Redirect in an effect, never during render.
+  useEffect(() => {
+    if (!userId && !currentUser) {
+      setLocation('/login');
+    }
+  }, [userId, currentUser, setLocation]);
 
   const { data: userProfile, isLoading: loadingProfile } = useGetUser(idToLoad as number, { 
     query: { enabled: !!idToLoad, queryKey: ['user', idToLoad] } 
@@ -56,6 +64,8 @@ export default function Profile() {
   const [followDialog, setFollowDialog] = useState<'followers' | 'following' | null>(null);
   const followMut = useFollowUser();
   const unfollowMut = useUnfollowUser();
+  const closeFriendMut = useCloseFriendUser();
+  const uncloseFriendMut = useUncloseFriendUser();
   const { data: followersList } = useListFollowers(idToLoad as number, {
     query: { enabled: !!idToLoad && followDialog === 'followers', queryKey: ['followers', idToLoad] },
   });
@@ -79,6 +89,20 @@ export default function Profile() {
         await unfollowMut.mutateAsync({ userId: idToLoad });
       } else {
         await followMut.mutateAsync({ userId: idToLoad });
+      }
+      queryClient.invalidateQueries({ queryKey: ['user', idToLoad] });
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const toggleCloseFriend = async () => {
+    if (!idToLoad) return;
+    try {
+      if (userProfile.isCloseFriend) {
+        await uncloseFriendMut.mutateAsync({ userId: idToLoad });
+      } else {
+        await closeFriendMut.mutateAsync({ userId: idToLoad });
       }
       queryClient.invalidateQueries({ queryKey: ['user', idToLoad] });
     } catch {
@@ -142,7 +166,24 @@ export default function Profile() {
                 )}
               </Button>
             )}
+
+            {!isOwnProfile && (
+              <Button
+                size="sm"
+                variant={userProfile.isCloseFriend ? 'default' : 'outline'}
+                onClick={toggleCloseFriend}
+                disabled={closeFriendMut.isPending || uncloseFriendMut.isPending}
+                className={userProfile.isCloseFriend ? 'bg-pink-600 hover:bg-pink-700 text-white' : ''}
+              >
+                <Heart className={`mr-2 h-4 w-4 ${userProfile.isCloseFriend ? 'fill-current' : ''}`} />
+                {t('closeFriend')}
+              </Button>
+            )}
           </div>
+
+          {!isOwnProfile && (
+            <p className="mt-2 text-xs text-muted-foreground max-w-md">{t('closeFriendHint')}</p>
+          )}
         </div>
         <div className="md:ml-auto flex gap-4 text-center">
           <div>
@@ -161,7 +202,7 @@ export default function Profile() {
         <StatBox title={t('matches')} value={userProfile.stats.totalMatches} icon={Activity} colorClass="text-blue-500" />
         <StatBox title="Wins" value={userProfile.stats.totalWins} icon={Trophy} colorClass="text-green-500" />
         <StatBox title="Losses" value={userProfile.stats.totalLosses} icon={Trophy} colorClass="text-red-500" />
-        <StatBox title="Goal Diff" value={(userProfile.stats.goalDifference || 0) > 0 ? `+${userProfile.stats.goalDifference}` : userProfile.stats.goalDifference} icon={Target} colorClass="text-amber-500" />
+        <StatBox title="Goal Diff" value={fmtGD(userProfile.stats.goalDifference || 0)} icon={Target} colorClass="text-amber-500" />
       </div>
 
       {userGroups && userGroups.length > 0 && (
@@ -198,7 +239,7 @@ export default function Profile() {
             <div className="p-4 bg-muted/20 rounded-lg text-center"><div className="text-xl font-bold">{userProfile.stats.fifaStats.points}</div><div className="text-xs text-muted-foreground">Points</div></div>
             <div className="p-4 bg-muted/20 rounded-lg text-center"><div className="text-xl font-bold">{Math.round(userProfile.stats.fifaStats.winRate)}%</div><div className="text-xs text-muted-foreground">Win Rate</div></div>
             <div className="p-4 bg-muted/20 rounded-lg text-center"><div className="text-xl font-bold">{userProfile.stats.fifaStats.wins}-{userProfile.stats.fifaStats.losses}</div><div className="text-xs text-muted-foreground">W-L</div></div>
-            <div className="p-4 bg-muted/20 rounded-lg text-center"><div className="text-xl font-bold">{userProfile.stats.fifaStats.goalDifference}</div><div className="text-xs text-muted-foreground">Goal Diff</div></div>
+            <div className="p-4 bg-muted/20 rounded-lg text-center"><div className="text-xl font-bold">{fmtGD(userProfile.stats.fifaStats.goalDifference || 0)}</div><div className="text-xs text-muted-foreground">Goal Diff</div></div>
           </div>
           
           <h3 className="font-bold text-xl mb-4">Match History</h3>
@@ -210,7 +251,7 @@ export default function Profile() {
             <div className="p-4 bg-muted/20 rounded-lg text-center"><div className="text-xl font-bold">{userProfile.stats.pesStats.points}</div><div className="text-xs text-muted-foreground">Points</div></div>
             <div className="p-4 bg-muted/20 rounded-lg text-center"><div className="text-xl font-bold">{Math.round(userProfile.stats.pesStats.winRate)}%</div><div className="text-xs text-muted-foreground">Win Rate</div></div>
             <div className="p-4 bg-muted/20 rounded-lg text-center"><div className="text-xl font-bold">{userProfile.stats.pesStats.wins}-{userProfile.stats.pesStats.losses}</div><div className="text-xs text-muted-foreground">W-L</div></div>
-            <div className="p-4 bg-muted/20 rounded-lg text-center"><div className="text-xl font-bold">{userProfile.stats.pesStats.goalDifference}</div><div className="text-xs text-muted-foreground">Goal Diff</div></div>
+            <div className="p-4 bg-muted/20 rounded-lg text-center"><div className="text-xl font-bold">{fmtGD(userProfile.stats.pesStats.goalDifference || 0)}</div><div className="text-xs text-muted-foreground">Goal Diff</div></div>
           </div>
           
           <h3 className="font-bold text-xl mb-4">Match History</h3>

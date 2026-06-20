@@ -3,6 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <script>
+      // Apply the saved language/direction before first paint so Arabic users
+      // don't see a flash of English/LTR before React mounts.
+      try {
+        var lang = localStorage.getItem('matchhub-lang');
+        var isAr = lang === 'ar';
+        document.documentElement.lang = isAr ? 'ar' : 'en';
+        document.documentElement.dir = isAr ? 'rtl' : 'ltr';
+      } catch (e) {}
+    </script>
     <title>MatchHub</title>
     <meta name="description" content="MatchHub — built on Replit. Update this description to reflect the app." />
     <meta name="robots" content="index, follow" />

@@ -5,6 +5,7 @@ import {
   timestamp,
   pgEnum,
   integer,
+  index,
   uniqueIndex,
   check,
 } from "drizzle-orm/pg-core";
@@ -47,6 +48,7 @@ export const matchesTable = pgTable("matches", {
   finishedAt: timestamp("finished_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
+  partyIdIdx: index("matches_party_id").on(table.partyId),
   teamAScoreNonNegative: check(
     "matches_team_a_score_non_negative",
     sql`${table.teamAScore} IS NULL OR ${table.teamAScore} >= 0`,
@@ -76,6 +78,7 @@ export const matchPlayersTable = pgTable("match_players", {
     table.matchId,
     table.userId,
   ),
+  userIdIdx: index("match_players_user_id").on(table.userId),
   isSpectatorBoolean: check(
     "match_players_is_spectator_boolean",
     sql`${table.isSpectator} IN (0, 1)`,

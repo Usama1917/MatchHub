@@ -39,7 +39,7 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       toast({ title: 'User deleted' });
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.error || 'Failed to delete' });
+      toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed to delete' });
     } finally {
       setConfirmDelete(null);
     }
@@ -53,7 +53,7 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
       toast({ title: 'User promoted to admin' });
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.error || 'Failed to promote' });
+      toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed to promote' });
     } finally {
       setConfirmPromote(null);
     }
@@ -67,7 +67,7 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
       toast({ title: 'Admin demoted to user' });
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e.error || 'Failed to demote' });
+      toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed to demote' });
     } finally {
       setConfirmDemote(null);
     }

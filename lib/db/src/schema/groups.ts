@@ -4,6 +4,7 @@ import {
   text,
   timestamp,
   integer,
+  index,
   uniqueIndex,
   pgEnum,
 } from "drizzle-orm/pg-core";
@@ -36,6 +37,7 @@ export const rankGroupMembersTable = pgTable("rank_group_members", {
     table.groupId,
     table.userId,
   ),
+  userIdIdx: index("rank_group_members_user_id").on(table.userId),
 }));
 
 export type RankGroup = typeof rankGroupsTable.$inferSelect;

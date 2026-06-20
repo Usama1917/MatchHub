@@ -14,7 +14,10 @@ function normalizeApiUrl(req) {
 
   if (
     catchAllPath &&
-    (url === "/" || url.startsWith("/?") || url.includes("[...path]"))
+    (url === "/" ||
+      url === "/api" ||
+      url.startsWith("/?") ||
+      url.includes("[...path]"))
   ) {
     const [, search = ""] = url.split("?", 2);
     const searchParams = new URLSearchParams(search);

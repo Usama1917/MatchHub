@@ -5,11 +5,13 @@ import {
   useListMatches,
   useCreateMatch,
   useCloseParty,
+  useCancelMatch,
   Match,
   MatchInputGame,
   MatchInputMatchFormat,
 } from '@workspace/api-client-react';
 import { Link } from 'wouter';
+import { copyToClipboard } from '@/lib/utils';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { MatchCard } from '@/components/MatchCard';
@@ -18,6 +20,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Spinner } from '@/components/ui/spinner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { ChevronLeft, Copy, Check, Share2, Plus, RotateCcw, Clock, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -32,6 +42,7 @@ export default function Party() {
 
   const id = parseInt(partyId || '0', 10);
   const [copied, setCopied] = useState(false);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
   const { data: party, isLoading } = useGetParty(id, {
     query: { enabled: !!id, queryKey: ['party', id] },
@@ -42,6 +53,7 @@ export default function Party() {
   );
   const createMatchMut = useCreateMatch();
   const closeMut = useCloseParty();
+  const cancelMatchMut = useCancelMatch();
 
   if (isLoading) {
     return <div className="flex h-screen items-center justify-center"><Spinner size="lg" /></div>;
@@ -53,13 +65,13 @@ export default function Party() {
   const isCreator = currentUser?.id === party.createdBy;
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(party.code);
+    const ok = await copyToClipboard(party.code);
+    if (ok) {
       setCopied(true);
       toast({ title: t('copied') });
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* ignore */
+    } else {
+      toast({ variant: 'destructive', title: t('error'), description: t('copyFailed') });
     }
   };
 
@@ -83,7 +95,34 @@ export default function Party() {
       queryClient.invalidateQueries({ queryKey: ['activeParty'] });
       toast({ title: t('partyClosed') });
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Error', description: e?.data?.error || e?.error || 'Failed' });
+      toast({ variant: 'destructive', title: t('error'), description: e?.data?.error || e?.error || t('failed') });
+    }
+  };
+
+  // A match that is still running blocks closing the party until it is either
+  // cancelled or its result is submitted.
+  const activeMatch = matches?.find((m) => m.status === 'in_progress');
+
+  const handleCloseClick = () => {
+    if (activeMatch) {
+      setCloseDialogOpen(true);
+    } else {
+      handleClose();
+    }
+  };
+
+  const handleCancelMatchAndClose = async () => {
+    if (!activeMatch) return;
+    try {
+      await cancelMatchMut.mutateAsync({ matchId: activeMatch.id });
+      queryClient.invalidateQueries({ queryKey: ['matches', 'party', id] });
+      await closeMut.mutateAsync({ partyId: party.id });
+      queryClient.invalidateQueries({ queryKey: ['party', id] });
+      queryClient.invalidateQueries({ queryKey: ['activeParty'] });
+      setCloseDialogOpen(false);
+      toast({ title: t('matchCancelled') });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: t('error'), description: e?.data?.error || e?.error || t('failed') });
     }
   };
 
@@ -214,13 +253,46 @@ export default function Party() {
         <Button
           variant="ghost"
           className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-          onClick={handleClose}
+          onClick={handleCloseClick}
           disabled={closeMut.isPending}
         >
           {closeMut.isPending ? <Spinner className="mr-2" /> : <XCircle className="mr-2 h-4 w-4" />}
           {t('closeParty')}
         </Button>
       )}
+
+      {/* Blocking choice when closing a party with a match still in progress */}
+      <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('closePartyActiveMatchTitle')}</DialogTitle>
+            <DialogDescription>{t('closePartyActiveMatchDesc')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+            <Button
+              className="w-full font-bold"
+              onClick={() => {
+                setCloseDialogOpen(false);
+                if (activeMatch) setLocation(`/matches/${activeMatch.id}/result`);
+              }}
+            >
+              {t('submitResult')}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={handleCancelMatchAndClose}
+              disabled={cancelMatchMut.isPending || closeMut.isPending}
+            >
+              {(cancelMatchMut.isPending || closeMut.isPending) && <Spinner className="mr-2" />}
+              {t('cancelMatch')}
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => setCloseDialogOpen(false)}>
+              {t('cancel')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
