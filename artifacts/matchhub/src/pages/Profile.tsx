@@ -74,8 +74,10 @@ export default function Profile() {
   const { data: followingList } = useListFollowing(idToLoad as number, {
     query: { enabled: !!idToLoad && followDialog === 'following', queryKey: ['following', idToLoad] },
   });
+  // Private ranks are a secondary section: never let a failure here (e.g. a
+  // pending DB migration) block or blank the rest of the profile.
   const { data: userGroups } = useListUserGroups(idToLoad as number, {
-    query: { enabled: !!idToLoad, queryKey: ['userGroups', idToLoad] },
+    query: { enabled: !!idToLoad, queryKey: ['userGroups', idToLoad], retry: false },
   });
 
   if (loadingProfile || !userProfile) {
